@@ -103,7 +103,6 @@ get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
           next
       }
 
-      fcs_count = as.matrix(cell_x_adt[cell_ind, adt])
       fcs = flowCore::flowFrame(fcs_count)
       n_unique_vals = nrow(unique(fcs_count))
 
@@ -111,69 +110,71 @@ get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
           ## only one value for this marker
           peak_loc[[sample_name]] = NA
           peak_region[[sample_name]] = matrix(NA, ncol = 2, nrow = 1)
-          print(paste0(sample_name, "-Single Value!"))
+          message(sample_name, "-Single Value!")
+          next
+      }
+
+      # get the proportion of cells near zero to diagnoise the
+      # negative peak enrichment
+      zero_prop = sum(fcs_count < 2) / nrow(fcs_count))
+
+      # zero_prop_list[[sample_name]] = zero_prop ## zero proportion
+      adt_expression = cell_x_adt[cell_ind, adt] ## adt value for this marker and this sample
+
+      # if most are around 0 and there are very few unique values:
+      # add random small number
+      if (zero_prop > 0.95){
+          if(n_unique_vals < 50){
+              adt_expression = adt_expression + stats::rnorm(length(adt_expression), mean = 0, sd = 0.05)
+              # exprs(dat[[sample_name]])[, adt] = adt_expression
+          }
+      }
+
+      ## different bandwidth w.r.t the zero proportion.
+      if (zero_prop > 0.5) {
+          fres = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = 3.1))
+      } else if (zero_prop > 0.3) {
+          fres = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = 3))
       } else {
-          # get the proportion of cells near zero to diagnoise the
-          # negative peak enrichment
-          zero_prop = sum(fcs_count < 2) / nrow(fcs_count))
-
-          # zero_prop_list[[sample_name]] = zero_prop ## zero proportion
-          adt_expression = cell_x_adt[cell_ind, adt] ## adt value for this marker and this sample
-
-          # if most are around 0 and there are very few unique values:
-          # add random small number
-          if (zero_prop > 0.95){
-              if(n_unique_vals < 50){
-                  adt_expression = adt_expression + stats::rnorm(length(adt_expression), mean = 0, sd = 0.05)
-                  # exprs(dat[[sample_name]])[, adt] = adt_expression
-              }
-          }
-
-          ## different bandwidth w.r.t the zero proportion.
-          if (zero_prop > 0.5) {
-              fres = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = 3.1))
-          } else if (zero_prop > 0.3) {
-              fres = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = 3))
-          } else {
-              fres = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = 2))
-          }
+          fres = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = 2))
+      }
 
 
-          ########
+      ########
 
-          ## processing CD4 ----
-          if (!is.null(cd4_index) && adt == cd4_index) {
-              fres = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = bwFac_smallest))
+      ## processing CD4 ----
+      if (!is.null(cd4_index) && adt == cd4_index) {
+          fres = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = bwFac_smallest))
+          peak_info = flowStats:::curvPeaks(
+          x = fres,
+          dat = adt_expression,
+          borderQuant = border,
+          from = from,
+          to = to
+          )
+
+          if(length(peak_info$peaks[, "x"]) != 3){ ## if not obtain 3 peaks, better to use a larger bw
+              fres = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = bwFac_smallest + 0.5))
               peak_info = flowStats:::curvPeaks(
               x = fres,
               dat = adt_expression,
               borderQuant = border,
               from = from,
               to = to
-              )
+          )}
 
-              if(length(peak_info$peaks[, "x"]) != 3){ ## if not obtain 3 peaks, better to use a larger bw
-                fres = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = bwFac_smallest + 0.5))
-                peak_info = flowStats:::curvPeaks(
-                x = fres,
-                dat = adt_expression,
-                borderQuant = border,
-                from = from,
-                to = to
-                )}
-
-              peak_ind = peak_info$peaks[, "y"] > lower_peak_thres
-              res = peak_info$peaks[, "x"][peak_ind]
-              res_region = peak_info$regions[peak_ind, ]
-          } else if(adt_marker_index %in% trimodal_marker_index){ ## trimodal marker
+          peak_ind = peak_info$peaks[, "y"] > lower_peak_thres
+          res = peak_info$peaks[, "x"][peak_ind]
+          res_region = peak_info$regions[peak_ind, ]
+      } else if(adt_marker_index %in% trimodal_marker_index){ ## trimodal marker
 
           fres = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = bwFac_smallest))
           peak_info = flowStats:::curvPeaks(
-            x = fres,
-            dat = adt_expression,
-            borderQuant = border,
-            from = from,
-            to = to
+          x = fres,
+          dat = adt_expression,
+          borderQuant = border,
+          from = from,
+          to = to
           )
           if(length(peak_info$peaks[, "x"]) != 3){ ## if not obtain 3 peaks, better to use a larger bw
             fres = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = bwFac_smallest + 0.5))
