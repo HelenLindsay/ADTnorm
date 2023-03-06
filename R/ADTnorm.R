@@ -90,15 +90,17 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL, save_outpath = NULL
     col_sums <- colSums(cell_x_adt)
     if (any(col_sums == 0)){
         message("Markers with zero counts will be ignored")
-        cell_x_adt = cell_x_adt[, col_sums > 0, drop = FALSE] 
+        cell_x_adt = cell_x_adt[, col_sums > 0, drop = FALSE]
     }
-    
+
     ## preprocess the input data
     cell_x_adt = arcsinh_transform(cell_x_adt = cell_x_adt) ## Arcsinh transformation
+
     all_marker_name = colnames(cell_x_adt) ## save the original marker name
     if(!is.factor(cell_x_feature$sample)){
         cell_x_feature$sample = factor(cell_x_feature$sample, levels = unique(cell_x_feature$sample))
     }
+
     ## get the index of bimodal marker
     if(is.null(bimodal_marker)){
         bimodal_marker = setdiff(all_marker_name, trimodal_marker)
@@ -118,6 +120,8 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL, save_outpath = NULL
         positive_peak[["ADT_index"]] = positive_peak_marker_index
 
     }
+
+
 
     ## get the index of important lineage marker
     if(is.null(cd3_index) && "CD3" %in% all_marker_name){
@@ -147,6 +151,11 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL, save_outpath = NULL
             print("Please provide consistent ADT marker name as the input ADT expression count matrix column name.")
         }
     }
+
+    print("adt_marker_index_list")
+    print(adt_marker_index_list)
+    print("trimodal index")
+    print(trimodal_marker_index)
 
     ## ADTnorm each marker
     for(adt_marker_index in adt_marker_index_list){ ## process each ADT marker respectively -- pending parallel running setup
@@ -234,7 +243,7 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL, save_outpath = NULL
             if(!dir.exists(paste0(save_outpath, "/figures"))){
                 dir.create(paste0(save_outpath, "/figures"), recursive = TRUE)
             }
-            
+
             grDevices::pdf(paste0(save_outpath, "/figures/ArcsinhTransform_", adt_marker_select_name, "_", study_name, ".pdf"), width = 11, height = ceiling(length(levels(cell_x_feature$sample)) * 0.4))
             print(density_plot)
             grDevices::dev.off()
