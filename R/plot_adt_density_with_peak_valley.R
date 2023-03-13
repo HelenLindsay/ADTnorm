@@ -41,14 +41,12 @@ plot_adt_density_with_peak_valley = function(cell_x_adt, cell_x_feature,
                                              valley_landmark_list,
                                              brewer_palettes = "Set1",
                                              parameter_list = NULL) {
-    if (is.null(parameter_list)) {
-        return("parameter_list is NULL!")
-    }
+    if (is.null(parameter_list)) { parameter_list <- list() }
     parameter_list_name = names(parameter_list)
 
     run_label = ""
     bw = 1
-    if (!is.null(parameter_list)) {
+    if (! is.null(parameter_list)) {
         if ("run_label" %in% parameter_list_name) {
             run_label = parameter_list[["run_label"]]
         }
@@ -57,9 +55,6 @@ plot_adt_density_with_peak_valley = function(cell_x_adt, cell_x_feature,
         }
     }
 
-    # peak_landmark_list = parameter_list$peak_landmark_list
-    # valley_landmark_list = parameter_list$valley_landmark_list
-    # brewer_palettes = parameter_list$brewer_palettes
     if (is.null(adt_marker_select)){
         adt_marker_select = colnames(cell_x_adt)
     }

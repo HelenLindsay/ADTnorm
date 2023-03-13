@@ -1,10 +1,14 @@
 #' Plot the expression density profile for ONE ADT marker
 #'
-#' This function plots adt expression density profile for only one ADT marker. Each track is a sample. Color by batch
-#' @param adt_count Matrix of ADT raw counts in cells (rows) by one target ADT marker (column) format.
-#' @param cell_x_feature Matrix of cells (rows) by cell features (columns) such as cell type, sample, and batch related information.
+#' This function plots adt expression density profile for only one ADT marker.
+#' Each track is a sample. Color by batch
+#' @param adt_count Matrix of ADT raw counts in cells (rows) by one target ADT
+#' marker (column) format.
+#' @param cell_x_feature Matrix of cells (rows) by cell features (columns) such
+#' as cell type, sample, and batch related information.
 #' @param brewer_palettes Set the color scheme of color brewer.
-#' @param parameter_list Users can specify: "run_label" to give name for this run; "bw" to adjust the band width of the density plot.
+#' @param parameter_list Users can specify: "run_label" to give name for this
+#' run; "bw" to adjust the band width of the density plot.
 #' @export
 #' @examples
 #' \dontrun{
@@ -20,7 +24,8 @@
 # require(tidyr)
 # require(ggridges)
 # require(ggpubr)
-plot_adt_density_each = function(adt_count, cell_x_feature, brewer_palettes, parameter_list = NULL) {
+plot_adt_density_each = function(adt_count, cell_x_feature, brewer_palettes,
+                                 parameter_list = NULL) {
     if (is.null(parameter_list)) {
         return("parameter_list is NULL!")
     }
@@ -37,53 +42,24 @@ plot_adt_density_each = function(adt_count, cell_x_feature, brewer_palettes, par
         }
     }
 
-    # peak_landmark_list = parameter_list$peak_landmark_list
-    # valley_landmark_list = parameter_list$valley_landmark_list
-    # brewer_palettes = parameter_list$brewer_palettes
-
     # If there is no batch, add a dummy variable
     if (! "batch" %in% colnames(cell_x_feature)){ cell_x_feature$batch <- 1 }
-    
+
     tmpProfile = data.frame(counts = adt_count) %>%
         mutate(
             sample = rep(cell_x_feature$sample, 1),
             batch = rep(cell_x_feature$batch, 1)
         )
 
-    # peak_location = list()
-    # valley_location = list()
-    # for (i in 1:ncol(peak_landmark_list)) {
-    #     peak_location[[i]] = data.frame(
-    #         # ADT = adt_marker_select,
-    #         sample = cell_x_feature$sample %>% levels(),
-    #         peakx = peak_landmark_list[, i],
-    #         peaky = 0.5,
-    #         peaks = 1:length(levels(cell_x_feature$sample))
-    #     )
-    #     if (i <= ncol(valley_landmark_list)) {
-    #         valley_location[[i]] = data.frame(
-    #             # ADT = adt_marker_select,
-    #             sample = cell_x_feature$sample %>% levels(),
-    #             peakx = valley_landmark_list[, i],
-    #             peaky = 0.5,
-    #             peaks = 1:length(levels(cell_x_feature$sample))
-    #         )
-    #     }
-    # }
     fillColor = grDevices::colorRampPalette(RColorBrewer::brewer.pal(8, brewer_palettes))(length(unique(tmpProfile$batch)))
     resPlot = ggplot(tmpProfile, aes(x = counts, y = sample)) +
         ggridges::geom_density_ridges(aes(fill = factor(batch)), bandwidth = bw) +
-        # geom_segment(data = peak_location[[1]], aes(x = peakx, xend = peakx, y = peaks, yend = peaky + peaks), size = 1) +
-        # geom_segment(data = valley_location[[1]], aes(x = peakx, xend = peakx, y = peaks, yend = peaky + peaks), size = 1, color = "grey") +
-        # facet_wrap(~ factor(ADT), scales = "free_x") +
         theme_bw(base_size = 20) +
         xlab(run_label) +
         ylab("") +
-        ggpubr::rotate_x_text(angle = 90) +
-        ggpubr::rremove("legend") +
         scale_fill_manual(values = fillColor) +
-        ggpubr::rremove("legend.title")
-
+        theme(axis.text.x = element_text(angle = 90)) +
+        guides(fill = "none")
 
     return(resPlot)
 }
