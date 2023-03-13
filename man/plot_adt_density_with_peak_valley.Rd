@@ -15,22 +15,31 @@ plot_adt_density_with_peak_valley(
 )
 }
 \arguments{
-\item{cell_x_adt}{Matrix of ADT raw counts in cells (rows) by ADT markers (columns) format.}
+\item{cell_x_adt}{Matrix of ADT raw counts in cells (rows) by ADT markers
+(columns) format.}
 
-\item{cell_x_feature}{Matrix of cells (rows) by cell features (columns) such as cell type, sample, and batch related information.}
+\item{cell_x_feature}{Matrix of cells (rows) by cell features (columns) such
+as cell type, sample, and batch related information.}
 
-\item{adt_marker_select}{The target ADT marker(s) that the denstiy plot is about. Leave it NULL will generate figures for all the ADT markers available in cell_x_adt.}
+\item{adt_marker_select}{The target ADT marker(s) that the density plot is
+about. Leave it NULL will generate figures for all the ADT markers available
+in cell_x_adt.}
 
-\item{peak_landmark_list}{Matrix of peak landmark locations with rows being samples and columns being the peaks.}
+\item{peak_landmark_list}{Matrix of peak landmark locations with rows being
+samples and columns being the peaks.}
 
-\item{valley_landmark_list}{Matrix of valley landmark locations with rows being samples and columns being the valleys.}
+\item{valley_landmark_list}{Matrix of valley landmark locations with rows
+being samples and columns being the valleys.}
 
 \item{brewer_palettes}{Set the color scheme of color brewer.}
 
-\item{parameter_list}{Users can specify: "run_label" to give name for this run; "bw" to adjust the band width of the density plot.}
+\item{parameter_list}{Users can specify: "run_label" to give name for this
+run; "bw" to adjust the band width of the density plot.}
 }
 \description{
-This function plots adt expression density profile with identifies peak and valley locations. Each panel is an ADT marker and each track is a sample. Color by batch
+This function plots adt expression density profile with identifies peak and
+valley locations. Each panel is an ADT marker and each track is a sample.
+Color by batch
 }
 \examples{
 \dontrun{
