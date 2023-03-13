@@ -11,16 +11,12 @@
 #' (columns) format.
 #' @param cell_x_feature Matrix of cells (rows) by cell features (columns) such
 #' as cell type, sample, and batch related information.
-#' @param adt Markers to normalize
-#'
+#' @param adt Marker to normalize
 #' @param bwFac_smallest The smallest band width parameter value.
 #' Recommend 1.1 for general bi-modal ADT markers except CD3, CD4 and CD8.
-#' @param bimodal_marker Name(s) of the ADT markers that tend to have two
-#' peaks based on researchers' prior knowledge or preliminary observation on the
-#' particular data to be processed.
-#' @param trimodal_marker Name(s) of the ADT markers that tend to have three
-#' peaks based on researchers' prior knowledge (e.g. CD4) or
-#' preliminary observation on particular data to be processed.
+#' @param n_expected_peaks How many peaks are expected based on researchers'
+#' prior knowledge (e.g. CD4 usually has 3 peaks) or preliminary observation on
+#' particular data to be processed.  Should be 2 or 3.
 #' @param positive_peak A list variable containing a vector of ADT marker(s)
 #' and a corresponding vector of sample name(s) in matching order to specify
 #' that the uni-peak detected should be aligned to positive peaks. For example,
@@ -34,16 +30,6 @@
 #' real peak. Set it to 0.01 to avoid suspicious positive peaks.
 #' Set it to 0.001 or smaller to include some small but often real
 #' positive peaks, especially for markers like CD19.
-#'
-#' @param cd3_index Index for CD3 marker. If the ADT marker is named "CD3",
-#' the program can detect the index automatically. If users named CD3 in a
-#' unique way, please provide the index for CD3 markers in the colname of cell_x_adt.
-#' @param cd4_index Index for CD4 marker. If the ADT marker is named "CD4",
-#' the program can detect the index automatically. If users named CD4 in a
-#' unique way, please provide the index for CD4 markers in the colname of cell_x_adt.
-#' @param cd8_index Index for CD8 marker. If the ADT marker is named "CD8",
-#' the program can detect the index automatically. If users named CD8 in a
-#' unique way, please provide the index for CD8 markers in the colname of cell_x_adt.
 #'
 #' @importFrom flowCore flowFrame
 #' @importFrom flowStats curv1Filter
@@ -59,25 +45,20 @@
 #' }
 # require(flowStats)
 # require(dplyr)
-get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
-                    peak_type = c("mode", "midpoint"), bwFac_smallest = 1.1,
-                    bimodal_marker = NULL, trimodal_marker = NULL,
-                    positive_peak = NULL, neg_candidate_thres = asinh(10/5 + 1),
-                    lower_peak_thres = 0.001, cd3 = NULL,
-                    cd4 = NULL, cd8 = NULL) {
+get_peak = function(cell_x_adt, cell_x_feature, adt,
+                    n_expected_peaks = 2, peak_type = c("mode", "midpoint"),
+                    bwFac_smallest = 1.1, positive_peak = NULL,
+                    neg_candidate_thres = asinh(10/5 + 1),
+                    lower_peak_thres = 0.001) {
 
     ## set parameters ----
-    bwFac = 1.2
     border = 0.01
-    peakNr = NULL
-    densities = NULL
     n = 201
-    indices = FALSE
 
     peak_type <- match.arg(peak_type)
     sample_names = levels(cell_x_feature$sample)
 
-    # get ADT value range with a slight extension
+    # get ADT value range with a slight extension across all samples
     range_diff <- diff(range(cell_x_adt[, adt], na.rm = TRUE))
     from = min(cell_x_adt[, adt], na.rm = TRUE) - range_diff * 0.15
     to = max(cell_x_adt[, adt], na.rm = TRUE) + range_diff * 0.15
@@ -86,27 +67,23 @@ get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
     peak_loc = list()
     peak_region = list()
 
-    # working here ----
-
     cell_x_adt <- as.matrix(cell_x_adt)
 
     # get peak for each sample of this processing ADT marker
     for(sample_name in sample_names){
 
-      fcs_count <- cell_x_adt[cell_x_feature$sample == sample_name, adt,
-                              drop = FALSE]
-      fcs_count <- fcs_count[! is.na(fcs_count), ]
+        fcs_count <- cell_x_adt[cell_x_feature$sample == sample_name, adt,
+                                drop = FALSE]
+        fcs_count <- fcs_count[! is.na(fcs_count), , drop = FALSE]
 
-      if (nrow(fcs_count) == 0){
+        if (nrow(fcs_count) == 0){
           peak_loc[[sample_name]] = NA
           peak_region[[sample_name]] = NA
           next
       }
 
-      fcs = flowCore::flowFrame(fcs_count)
-      n_unique_vals = nrow(unique(fcs_count))
-
-      if (n_unique_vals == 1){
+        n_unique_vals = nrow(unique(fcs_count))
+        if (n_unique_vals == 1){
           ## only one value for this marker
           peak_loc[[sample_name]] = NA
           peak_region[[sample_name]] = matrix(NA, ncol = 2, nrow = 1)
@@ -114,98 +91,71 @@ get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
           next
       }
 
-      # get proportion of cells near zero to diagnose the neg peak enrichment
-      zero_prop = sum(fcs_count < 2) / nrow(fcs_count)
+        # get proportion of cells near zero to diagnose the neg peak enrichment
+        zero_prop = sum(fcs_count < 2) / nrow(fcs_count)
 
-      # NOT NECESSARY?
-      adt_expression = cell_x_adt[cell_ind, adt] ## adt value for this marker and this sample
+        # if most are around 0 and there are very few unique values:
+        # add random small number
+        if (zero_prop > 0.95){
+            if(n_unique_vals < 50){
+                fcs_count = fcs_count + stats::rnorm(nrow(fcs_count),
+                                                     mean = 0, sd = 0.05)
+            }
+        }
 
-      # if most are around 0 and there are very few unique values:
-      # add random small number
-      if (zero_prop > 0.95){
-          if(n_unique_vals < 50){
-              fcs_count= fcs_count + stats::rnorm(nrow(fcs_count), mean = 0, sd = 0.05)
-          }
-      }
+        fcs = flowCore::flowFrame(fcs_count)
 
-      # different bandwidth w.r.t the zero proportion.
-      if (zero_prop > 0.5) {
-          fres = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = 3.1))
-      } else if (zero_prop > 0.3) {
-          fres = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = 3))
-      } else {
-          fres = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = 2))
-      }
+        # Convert fcs_count to vector for curvPeaks
+        fcs_vec <- as.vector(fcs_count)
 
-      ######
+        run_curvPeaks <- function(bwFac, border = border){
+            fres = flowCore::filter(fcs,
+                                    flowStats::curv1Filter(adt, bwFac = bwFac))
+            peak_info = flowStats::curvPeaks(x = fres, dat = fcs_vec,
+                                              borderQuant = border, from = from,
+                                              to = to)
+            return(peak_info)
+        }
 
-      # is fres calculated above used??
+        if (n_expected_peaks == 3){
+            peak_info = run_curvPeaks(bwFac_smallest)
 
-      ########
-
-      # Can we use the flowFrame here?
-
-      run_curvPeaks <- function(bwFac, border = border){
-          fres = flowCore::filter(fcs,
-                                  flowStats::curv1Filter(adt, bwFac = bwFac))
-          peak_info = flowStats:::curvPeaks(x = fres, dat = fcs,
-                                            borderQuant = border, from = from,
-                                            to = to)
-          return(peak_info)
-      }
-
-
-      ## processing CD4 ----
-      if (adt == cd4) {
-          peak_info = run_curvPeaks(bwFac_smallest)
-
-          if (length(peak_info$peaks[, "x"]) != 3){ ## if not obtain 3 peaks, better to use a larger bw
+            ## if not obtain 3 peaks, better to use a larger bw
+            if (length(peak_info$peaks[, "x"]) != 3){
+              message("Didn't find 3 peaks.  Trying larger bandwidth\n")
               peak_info = run_curvPeaks(bwFac_smallest + 0.5)
-          }
+            }
 
-          # -----------------
-          # do we only need the peak info??
-          # ---------
+            ### NOTE ORIGINAL CODE ONLY FILTERS WITH THRESHOLD FOR CD4
+            peak_ind = peak_info$peaks[, "y"] > lower_peak_thres
+            res = peak_info$peaks[, "x"][peak_ind]
+            res_region = peak_info$regions[peak_ind, ]
 
-          peak_ind = peak_info$peaks[, "y"] > lower_peak_thres
-          res = peak_info$peaks[, "x"][peak_ind]
-          res_region = peak_info$regions[peak_ind, ]
+        } else { # other marker
 
-      } else if(adt %in% trimodal_marker){ ## trimodal marker
+          # different bandwidth w.r.t the zero proportion.
+          if (zero_prop > 0.5) { bwFac <- 3.1
+          } else if (zero_prop > 0.3) { bwFac <- 3
+          } else { bwFac <- 2 }
 
-          peak_info = run_curvPeaks(bwFac_smallest)
-
-          if(length(peak_info$peaks[, "x"]) != 3){ ## if not obtain 3 peaks, better to use a larger bw
-            peak_info = run_curvPeaks(bwFac_smallest + 0.5)
-          }
-
-          res = peak_info$peaks[, "x"] # should this be midpoint??
-          res_region = peak_info$regions
-      } else { ## other marker
-          peak_info = flowStats:::curvPeaks(x = fres, dat = adt_expression,
-                                            borderQuant = border, from = from,
-                                            to = to)
+          peak_info = run_curvPeaks(bwFac)
 
           ## if no peak is detected
           if(is.na(peak_info$midpoints[1])){
+            message("No peak midpoint found, trying smaller bandwidth\n")
+
             ## try using the smallest bw
-            fres0 = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = bwFac_smallest))
-            peak_info = flowStats:::curvPeaks(x = fres0, dat = adt_expression,                                                borderQuant = 0, from = from, to = to)
+            peak_info = run_curvPeaks(bwFac_smallest)
 
             ## if still no peak detected
             if(is.na(peak_info$midpoints[1])){
-              adt_expression = adt_expression + stats::rnorm(length(adt_expression), mean = 0, sd = 0.05)
-              fcs_count = adt_expression %>% t %>% t %>% as.matrix()
-              colnames(fcs_count) = adt
+              message("Still no peak detected, adding random noise\n")
+
+              fcs_count <- fcs_count + stats::rnorm(length(fcs_count),
+                                                    mean = 0, sd = 0.05)
               fcs = flowCore::flowFrame(fcs_count)
-              ## update fres
-              fres1 = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = 2))
-              fres2 = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = 3))
-              fres3 = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = 3.1))
-              fres = fres3
-              peak_info = flowStats:::curvPeaks(x = fres, dat = adt_expression,
-                                                borderQuant = border,
-                                                from = from, to = to)
+              fcs_vec = as.vector(fcs_count)
+              peak_info = run_curvPeaks(bwFac = 3.1)
             }
       }
 
@@ -224,8 +174,10 @@ get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
               res_region = peak_info$regions[peak_ind, ]
 
             } else if (zero_prop > 0.3 && length(peak_info$peaks[, "x"]) < 2) {
-              ## less than 2 peaks and zero proportion is larger than 0.3, use finer bandwidth:fres1 instead of fres2
-              peak_info = flowStats:::curvPeaks(x = fres1, dat = adt_expression,
+              ## less than 2 peaks and zero proportion is larger than 0.3,
+              # use finer bandwidth:fres1 instead of fres2
+
+              peak_info = flowStats::curvPeaks(x = fres1, dat = adt_expression,
                                                 borderQuant = 0, from = from,
                                                 to = to)
 
@@ -235,15 +187,18 @@ get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
                 res = peak_info$peaks[, "x"]
                 res_region = peak_info$regions
 
-                fres0 = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = bwFac_smallest))
+                fres0 = flowCore::filter(fcs, flowStats::curv1Filter(adt,
+                                                        bwFac = bwFac_smallest))
 
-                peak_info = flowStats:::curvPeaks(x = fres0,
+                peak_info = flowStats::curvPeaks(x = fres0,
                                                   dat = adt_expression,
                                                   borderQuant = 0,
                                                   from = from,
                                                   to = to)
 
-                if((length(peak_info$peaks[, "x"]) >= 2) && (sum(peak_info$peaks[, 'y']) > y_sum) && (peak_info$peaks[, "x"][2] - peak_info$peaks[, "x"][1] > 0.3)){
+                if((length(peak_info$peaks[, "x"]) >= 2) &&
+                   (sum(peak_info$peaks[, 'y']) > y_sum) &&
+                   (peak_info$peaks[, "x"][2] - peak_info$peaks[, "x"][1] > 0.3)){
                   ## if using the smallest bw obtain better peak mode, switch from fres1 to fres0 results
                   res = peak_info$peaks[, "x"][peak_info$peaks[, "y"] > lower_peak_thres]
                   res_region = peak_info$regions[peak_info$peaks[, "y"] > lower_peak_thres, ]
@@ -257,7 +212,7 @@ get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
               } else if (length(peak_info$peaks[, "x"]) < 2) {
                 ## try with smallest bw to get more peak modes
                 fres0 = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = bwFac_smallest))
-                peak_info = flowStats:::curvPeaks(
+                peak_info = flowStats::curvPeaks(
                   x = fres0,
                   dat = adt_expression,
                   borderQuant = 0,
@@ -267,7 +222,7 @@ get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
                 if(any(is.na(peak_info$peaks[, "x"])) || (length(peak_info$peaks[, "x"]) >= 2 && peak_info$peaks[, "x"][2] - peak_info$peaks[, "x"][1] < 0.5)){
 
                   ## smallest bw may lead to NA midpoint or peaks that are too close due to discrete value
-                  peak_info = flowStats:::curvPeaks(
+                  peak_info = flowStats::curvPeaks(
                     x = fres1,
                     dat =  adt_expression,
                     borderQuant = 0,
@@ -289,7 +244,7 @@ get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
             } else if (zero_prop <= 0.3 && length(peak_info$peaks[, "x"]) < 2) {
               ## less than 2 peaks and small zero proportion, user finer bandwidth: fres0 instead of fres1
               fres0 = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = bwFac_smallest)) ## 1.5
-              peak_info = flowStats:::curvPeaks(x = fres0,
+              peak_info = flowStats::curvPeaks(x = fres0,
                                                 dat =  adt_expression,
                                                 borderQuant = 0,
                                                 from = from,
@@ -297,7 +252,7 @@ get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
 
               peak_info$peaks[, "x"] = peak_info$peaks[, "x"]
               if(any(is.na(peak_info$peaks[, "x"])) || (length(peak_info$peaks[, "x"]) >= 2 && peak_info$peaks[, "x"][2] - peak_info$peaks[, "x"][1] < 0.5)){
-                peak_info = flowStats:::curvPeaks(x = fres1,
+                peak_info = flowStats::curvPeaks(x = fres1,
                                                   dat =  adt_expression,
                                                   borderQuant = 0,
                                                   from = from, to = to)
@@ -327,7 +282,7 @@ get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
         ## all the multiple peaks are around 0
         if (length(res) > 1 && zero_prop <= 0.3 && (sum(res < neg_candidate_thres) == length(res))) {
           ## use broader bandwidth to merge multiple peaks around 0. Use fres2 instead fres1
-          peak_infoTmp = flowStats:::curvPeaks(
+          peak_infoTmp = flowStats::curvPeaks(
             x = fres2,
             dat =  adt_expression,
             borderQuant = border,
@@ -379,7 +334,7 @@ get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
         peak_region[[sample_name]] = matrix(NA, ncol = 2, nrow = length(res))
         peak_region[[sample_name]][1:length(res), ] = res_region
 
-      }
+
 
   } ## end of for loop for sample_name in sample_names
 
@@ -447,3 +402,7 @@ get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
   return(landmark)
 }
 
+
+bwFac_smallest = 1.1
+neg_candidate_thres = asinh(10/5 + 1)
+lower_peak_thres = 0.001
