@@ -69,10 +69,7 @@ get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
     ## set parameters ----
     bwFac = 1.2
     border = 0.01
-    peakNr = NULL
-    densities = NULL
     n = 201
-    indices = FALSE
 
     peak_type <- match.arg(peak_type)
     sample_names = levels(cell_x_feature$sample)
@@ -381,7 +378,7 @@ get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
 
       }
 
-  } ## end of for loop for sample_name in sample_names
+   ## end of for loop for sample_name in sample_names
 
   ## initiate landmark to record peak mode location
   landmark = matrix(NA, ncol = peak_num, nrow = length(sample_names))
@@ -446,4 +443,3 @@ get_peak = function(cell_x_adt, cell_x_feature, adt = NULL,
 
   return(landmark)
 }
-

@@ -1,6 +1,8 @@
 #' Identify the valley outliers and impute by valley by closet neighbor samples on the graph.
 #'
-#' This function identify the valley that tend to be outliers compared to other valley locations and try to find the closest samples that have similar density distribution to impute the valley. If no neighbor sample is detected, the valley will remain as original.
+#' This function identifies the valleys that tend to be outliers compared to
+#' other valley locations and try to find the closest samples that have similar
+#' density distribution to impute the valley. If no neighbor sample is detected, the valley will remain as original.
 #' @param valley_location_res Matrix of valley landmark locations with rows being samples and columns being the valleys.
 #' @param adt_marker_select The marker whose valley need to be imputed. Fine the neighbor samples whose density distribution is close to the target sample of the same ADT marker.
 #' @param cell_x_adt Matrix of ADT raw counts in cells (rows) by ADT markers (columns) format.
@@ -18,16 +20,20 @@
 #' @export
 detect_impute_outlier_valley <- function(valley_location_res, adt_marker_select, cell_x_adt, cell_x_feature, scale = 3, method = "MAD", nearest_neighbor_n = 3, nearest_neighbor_threshold = 0.75){
     ## get batch information
-    valley_df <- valley_location_res %>% data.frame %>% mutate(sample = rownames(valley_location_res))
-    valley_df <- left_join(valley_df, cell_x_feature %>% select(sample, batch) %>% unique, by = "sample")
+    valley_df <- valley_location_res %>%
+      data.frame %>%
+      mutate(sample = rownames(valley_location_res))
+    valley_df <- left_join(valley_df, cell_x_feature %>%
+                             select(sample, batch) %>%
+                             unique, by = "sample")
 
     ## within each batch find the valley outlier and impute by the nearest neighbor samples' valley
-    for(batch_each in cell_x_feature$batch %>% unique){
+    for( batch_each in cell_x_feature$batch %>% unique ){
 
         ## get the sample id within each batch
         sample_select <- which(valley_df$batch == batch_each)
 
-        if(length(sample_select) > 2){ ## more than two sample per batch
+        if( length(sample_select) > 2 ){ ## more than two sample per batch
             ## for each valley
             for(c in 1:ncol(valley_location_res)){
 
