@@ -2,7 +2,8 @@
 % Please edit documentation in R/get_neighbors.R
 \name{get_neighbors}
 \alias{get_neighbors}
-\title{Identify the valley outliers and impute by valley by closet neighbor samples on the graph.}
+\title{Identify the valley outliers and impute by valley by closet neighbor samples
+on the graph.}
 \usage{
 get_neighbors(
   target_sample,
@@ -14,20 +15,28 @@ get_neighbors(
 )
 }
 \arguments{
-\item{target_sample}{The target sample whose valley need to be imputed. Find the neighbor samples whose density distribution is close to the target sample.}
+\item{target_sample}{The target sample whose valley need to be imputed. Find
+the neighbor samples whose density distribution is close to the target sample.}
 
-\item{adt_marker_select}{The marker whose valley need to be imputed. Fine the neighbor samples whose density distribution is close to the target sample of the same ADT marker.}
+\item{adt_marker_select}{The marker whose valley need to be imputed. Fine the
+neighbor samples whose density distribution is close to the target sample of
+the same ADT marker.}
 
-\item{cell_x_adt}{Matrix of ADT raw counts in cells (rows) by ADT markers (columns) format.}
+\item{cell_x_adt}{Matrix of ADT raw counts in cells (rows) by ADT markers
+(columns) format.}
 
-\item{cell_x_feature}{Matrix of cells (rows) by cell features (columns) such as cell type, sample, and batch related information.}
+\item{cell_x_feature}{Matrix of cells (rows) by cell features (columns) such
+as cell type, sample, and batch related information.}
 
 \item{nearest_neighbor_n}{Number of top nearest neighbor samples to detect.}
 
 \item{nearest_neighbor_threshold}{Threshold to call neighbor samples.}
 }
 \description{
-This function identify the valley that tend to be outliers compared to other valley locations and try to find the closest samples that have similar density distribution to imput the valley. If no neighbor sample is detected, the valley will remain as original.
+This function identify the valley that tend to be outliers compared to other
+valley locations and try to find the closest samples that have similar
+density distribution to impute the valley. If no neighbor sample is detected,
+the valley will remain as original.
 }
 \examples{
 \dontrun{

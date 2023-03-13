@@ -34,26 +34,25 @@ detect_impute_outlier_valley <- function(valley_location_res, adt_marker_select,
 
     method = match.arg(method, choices = c("MAD", "IQR"))
 
+    # Get batch information
     valley_df <- valley_location_res %>%
         data.frame %>%
-        mutate(sample = rownames(valley_location_res))
-
-    ## get batch information
-    valley_df <- left_join(valley_df, cell_x_feature %>%
-                                        select(sample, batch) %>%
-                                        unique,
-                           by = "sample")
+        mutate(sample = rownames(valley_location_res)) %>%
+        left_join(valley_df, cell_x_feature %>%
+                                select(sample, batch) %>%
+                                unique,
+                  by = "sample")
 
     ## within each batch find the valley outlier and impute by the nearest
     ## neighbor samples' valley
-    for(batch_each in cell_x_feature$batch %>% unique){
+    for (batch_each in cell_x_feature$batch %>% unique){
 
         ## get the sample id within each batch
         sample_select <- which(valley_df$batch == batch_each)
 
-        if(length(sample_select) > 2){ ## more than two sample per batch
+        if (length(sample_select) > 2){ ## more than two sample per batch
             ## for each valley
-            for(c in 1:ncol(valley_location_res)){
+            for (c in 1:ncol(valley_location_res)){
 
                 ## choose outlier detection method
                 valley_loc <- valley_location_res[sample_select, c]
@@ -99,8 +98,8 @@ detect_impute_outlier_valley <- function(valley_location_res, adt_marker_select,
 
 .outlier_mad <- function(valley_loc, scale){
     abs_dev <- abs(valley_loc - stats::median(valley_loc, na.rm = TRUE))
-    outlier <- which(abs_dev > stats::mad(valley_loc, na.rm = TRUE) * scale)
-    return(outlier)
+    outlier <- abs_dev > stats::mad(valley_loc, na.rm = TRUE) * scale
+    return(which(outlier))
 }
 
 .outlier_iqr <- function(valley_loc, scale){
