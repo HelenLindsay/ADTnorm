@@ -89,7 +89,7 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL, save_outpath = NULL
     ## Remove ADT with zero counts
     col_sums <- colSums(cell_x_adt)
     if (any(col_sums == 0)){
-        message("Markers with zero counts will be ignored")
+        message("Markers with zero counts will be ignored\n")
         cell_x_adt = cell_x_adt[, col_sums > 0, drop = FALSE]
     }
 
@@ -115,7 +115,8 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL, save_outpath = NULL
     if(!is.null(positive_peak)){
         positive_peak_marker_index = c()
         for(adt_each in positive_peak[["ADT"]]){
-            positive_peak_marker_index = c(positive_peak_marker_index, which(all_marker_name %in% adt_each))
+            positive_peak_marker_index = c(positive_peak_marker_index,
+                                          which(all_marker_name %in% adt_each))
         }
         positive_peak[["ADT_index"]] = positive_peak_marker_index
 
@@ -134,20 +135,22 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL, save_outpath = NULL
         cd8_index = which(all_marker_name == "CD8")
     }
 
-    colnames(cell_x_adt) = paste0("tmpName", 1:ncol(cell_x_adt)) ## replace the marker name by temp simple name to avoid symbol change by r
-
+    ## replace the marker name by temp simple name to avoid symbol change by r
+    colnames(cell_x_adt) = paste0("tmpName", 1:ncol(cell_x_adt))
 
     ## get the ADT marker index that need normalization
     if(is.null(marker_to_process)){
-        print(paste0("ADTnorm will process all the ADT markers from the ADT matrix:", paste(all_marker_name,  collapse = ", ")))
+        print(paste0("ADTnorm will process all the ADT markers from the ADT matrix:",
+                     paste(all_marker_name,  collapse = ", ")))
         adt_marker_index_list = 1:ncol(cell_x_adt)
         cell_x_adt_norm = cell_x_adt ## to record normalization results
     }else{
-        print(paste0("ADTnorm will process the following ADT markers as provided:", paste(marker_to_process, collapse = ", ")))
+        print(paste0("ADTnorm will process the following ADT markers as provided:",
+                     paste(marker_to_process, collapse = ", ")))
         adt_marker_index_list = which(all_marker_name %in% marker_to_process)
         cell_x_adt_norm = cell_x_adt[, adt_marker_index_list] %>% t %>% t ## to record normalization results
         colnames(cell_x_adt_norm) = paste0("tmpName", 1:ncol(cell_x_adt))[adt_marker_index_list]
-        if(length(adt_marker_index_list) == 0){
+        if (length(adt_marker_index_list) == 0){
             print("Please provide consistent ADT marker name as the input ADT expression count matrix column name.")
         }
     }

@@ -69,27 +69,33 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
 
     cell_x_adt <- as.matrix(cell_x_adt)
 
+    # split matrix by sample? bpaggregate?
+
     # get peak for each sample of this processing ADT marker
     for(sample_name in sample_names){
+
+        # Setup data -------------------------------------------------
 
         fcs_count <- cell_x_adt[cell_x_feature$sample == sample_name, adt,
                                 drop = FALSE]
         fcs_count <- fcs_count[! is.na(fcs_count), , drop = FALSE]
 
         if (nrow(fcs_count) == 0){
-          peak_loc[[sample_name]] = NA
-          peak_region[[sample_name]] = NA
-          next
-      }
+            #result <- .no_peaks(sample_name)
+
+            peak_loc[[sample_name]] = NA
+            peak_region[[sample_name]] = NA
+            next
+        }
 
         n_unique_vals = nrow(unique(fcs_count))
         if (n_unique_vals == 1){
-          ## only one value for this marker
-          peak_loc[[sample_name]] = NA
-          peak_region[[sample_name]] = matrix(NA, ncol = 2, nrow = 1)
-          message(sample_name, "-Single Value!")
-          next
-      }
+            ## only one value for this marker
+            peak_loc[[sample_name]] = NA
+            peak_region[[sample_name]] = matrix(NA, ncol = 2, nrow = 1)
+            message(sample_name, "-Single Value!")
+            next
+        }
 
         # get proportion of cells near zero to diagnose the neg peak enrichment
         zero_prop = sum(fcs_count < 2) / nrow(fcs_count)
@@ -106,24 +112,28 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
         fcs = flowCore::flowFrame(fcs_count)
 
         # Convert fcs_count to vector for curvPeaks
-        fcs_vec <- as.vector(fcs_count)
+        fcs_vec <- as.vector(fcs_count) # fcs@exprs[, adt]
+
+        # -------------------------------------------------
 
         run_curvPeaks <- function(bwFac, border = border){
             fres = flowCore::filter(fcs,
                                     flowStats::curv1Filter(adt, bwFac = bwFac))
             peak_info = flowStats::curvPeaks(x = fres, dat = fcs_vec,
-                                              borderQuant = border, from = from,
-                                              to = to)
+                                             borderQuant = border, from = from,
+                                             to = to)
             return(peak_info)
         }
+
+        # -------------------------------------------------
 
         if (n_expected_peaks == 3){
             peak_info = run_curvPeaks(bwFac_smallest)
 
             ## if not obtain 3 peaks, better to use a larger bw
             if (length(peak_info$peaks[, "x"]) != 3){
-              message("Didn't find 3 peaks.  Trying larger bandwidth\n")
-              peak_info = run_curvPeaks(bwFac_smallest + 0.5)
+                message("Didn't find 3 peaks.  Trying larger bandwidth\n")
+                peak_info = run_curvPeaks(bwFac_smallest + 0.5)
             }
 
             ### NOTE ORIGINAL CODE ONLY FILTERS WITH THRESHOLD FOR CD4
@@ -133,64 +143,60 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
 
         } else { # other marker
 
-          # different bandwidth w.r.t the zero proportion.
-          if (zero_prop > 0.5) { bwFac <- 3.1
-          } else if (zero_prop > 0.3) { bwFac <- 3
-          } else { bwFac <- 2 }
+            # different bandwidth w.r.t the zero proportion.
+            bwFac <- .set_bw_by_zero_prop(zero_prop)
 
-          peak_info = run_curvPeaks(bwFac)
+            peak_info = run_curvPeaks(bwFac)
 
-          ## if no peak is detected
-          if(is.na(peak_info$midpoints[1])){
-            message("No peak midpoint found, trying smaller bandwidth\n")
-
-            ## try using the smallest bw
-            peak_info = run_curvPeaks(bwFac_smallest)
-
-            ## if still no peak detected
+            ## if no peak is detected
             if(is.na(peak_info$midpoints[1])){
-              message("Still no peak detected, adding random noise\n")
+                message("No peak midpoint found, trying smaller bandwidth\n")
 
-              fcs_count <- fcs_count + stats::rnorm(length(fcs_count),
-                                                    mean = 0, sd = 0.05)
-              fcs = flowCore::flowFrame(fcs_count)
-              fcs_vec = as.vector(fcs_count)
-              peak_info = run_curvPeaks(bwFac = 3.1)
+                ## try using the smallest bw
+                peak_info = run_curvPeaks(bwFac_smallest)
+
+                ## if still no peak detected
+                if(is.na(peak_info$midpoints[1])){
+                    message("Still no peak detected, adding random noise\n")
+
+                    fcs_count <- fcs_count + stats::rnorm(length(fcs_count),
+                                                          mean = 0, sd = 0.05)
+                    fcs = flowCore::flowFrame(fcs_count)
+                    fcs_vec = as.vector(fcs_count)
+                    peak_info = run_curvPeaks(bwFac = 3.1)
+                }
             }
-      }
 
-      # HERE -----
 
-          ## User defined the marker that is known to usually have multiple peaks (n = 2)
-          if (adt_marker_index %in% bimodal_marker_index) {
-            if (length(peak_info$peaks[, "x"]) == 2) {
-              ## 2 peaks, perfect!
-              res = peak_info$peaks[, "x"]
-              res_region = peak_info$regions
-            } else if (length(peak_info$peaks[, "x"]) > 2) {
-              ## more than 2 peaks, consider filtering out very low density peaks
-              peak_ind = peak_info$peaks[, "y"] > lower_peak_thres
-              res = peak_info$peaks[, "x"][peak_ind]
-              res_region = peak_info$regions[peak_ind, ]
+            ## User defined the marker that is known to usually have multiple peaks (n = 2)
+            if (adt_marker_index %in% bimodal_marker_index) {
+                if (length(peak_info$peaks[, "x"]) == 2) {
+                    ## 2 peaks, perfect!
+                    res = peak_info$peaks[, "x"]
+                    res_region = peak_info$regions
+                } else if (length(peak_info$peaks[, "x"]) > 2) {
+                    ## more than 2 peaks, consider filtering out very low density peaks
+                    peak_ind = peak_info$peaks[, "y"] > lower_peak_thres
+                    res = peak_info$peaks[, "x"][peak_ind]
+                    res_region = peak_info$regions[peak_ind, ]
+                } else if (zero_prop > 0.3 && length(peak_info$peaks[, "x"]) < 2) {
+                    ## less than 2 peaks and zero proportion is larger than 0.3,
+                    # use finer bandwidth:fres1 instead of fres2
 
-            } else if (zero_prop > 0.3 && length(peak_info$peaks[, "x"]) < 2) {
-              ## less than 2 peaks and zero proportion is larger than 0.3,
-              # use finer bandwidth:fres1 instead of fres2
+                    peak_info = flowStats::curvPeaks(x = fres1, dat = adt_expression,
+                                                     borderQuant = 0, from = from,
+                                                     to = to)
 
-              peak_info = flowStats::curvPeaks(x = fres1, dat = adt_expression,
-                                                borderQuant = 0, from = from,
-                                                to = to)
+                     if (length(peak_info$peaks[, "x"]) == 2) {
+                         ## peak number ==2 output results.
+                         y_sum = peak_info$peaks[, 'y'] %>% sum
+                         res = peak_info$peaks[, "x"]
+                         res_region = peak_info$regions
 
-              if (length(peak_info$peaks[, "x"]) == 2) {
-                ## peak number ==2 output results.
-                y_sum = peak_info$peaks[, 'y'] %>% sum
-                res = peak_info$peaks[, "x"]
-                res_region = peak_info$regions
-
-                fres0 = flowCore::filter(fcs, flowStats::curv1Filter(adt,
+                         fres0 = flowCore::filter(fcs, flowStats::curv1Filter(adt,
                                                         bwFac = bwFac_smallest))
 
-                peak_info = flowStats::curvPeaks(x = fres0,
+                         peak_info = flowStats::curvPeaks(x = fres0,
                                                   dat = adt_expression,
                                                   borderQuant = 0,
                                                   from = from,
@@ -403,6 +409,99 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
 }
 
 
-bwFac_smallest = 1.1
-neg_candidate_thres = asinh(10/5 + 1)
-lower_peak_thres = 0.001
+
+# .check_peak_func ----
+# Return a function for checking the number of peaksm args prefilled
+# (e.g. `<=`, `==`)
+.check_peak_func <- function(compare_f, n_expected, msg = NULL){
+    check_peaks <- function(peak_info){
+        result <- compare_f(length(peak_info$peaks[, "x"]), n_expected)
+        if (! is.null(msg) & isFALSE(result)) { message(msg) }
+        return(result)
+    }
+    return(check_peaks)
+}
+
+.debug_log <- function(){
+
+}
+
+.set_bwFac <- function(bwFac){
+    set_bwFac <- function(obj){
+        obj$bwFac <- bwFac
+        return(obj)
+    }
+    return(set_bwFac)
+}
+
+.setup_flowframe <- function(zero_prop, n_unique_vals){
+    # counts as matrix and vector
+    # zero prop
+    #fcs_count + stats::rnorm(nrow(fcs_count),
+    #                         mean = 0, sd = 0.05)
+    #fcs = flowCore::flowFrame(fcs_count)
+
+    #curvPeaks(x = fres, dat = fcs_vec,
+    #          borderQuant = border, from = from,
+    #          to = to)
+}
+
+
+.update_flowframe <- function(obj, random = FALSE, bwFac = NULL, border = NULL){
+    if (isTRUE(random)){ obj <- .random_noise(obj) }
+    if (! is.null(bwFac)) { obj$bwFac <- bwFac }
+    #update_args <- match.call()
+    #updata_args <- update_args[names(update_args) %in% c(b)]
+    return(obj)
+}
+
+
+.set_bw_by_zero_prop <- function(zero_prop){
+    # different bandwidth w.r.t the zero proportion.
+    if (zero_prop > 0.5) { return(3.1) }
+    if (zero_prop > 0.3) { return(3) }
+    return(2)
+}
+
+
+
+.no_peaks <- function(sample_name){
+    result <- list(sample = sample_name, peak_loc = NA, peak_region = NA)
+}
+
+.random_noise <- function(obj){
+
+}
+
+
+
+
+
+
+trimodal_workflow <- function(bwFac_smallest){
+    return(list(check_funcs = .check_peak_func(`==`, 3),
+                check_false = list(bwFac = bwFac_smallest + 0.5)))
+}
+
+
+bimodal_workflow <- function(bwFac_smallest){
+  return(list(setup = list(bwFac = bwFac_smallest),
+                check_funcs = c(.check_peak_func(`>=`, 1),
+                              .check_peak_func(`>=`, 1),
+                              .check_peak_func(`==`, 2)),
+              # Args for .update_flowframe
+              check_false = c(list(bwFac = bwFac_smallest),
+                              list(random = TRUE, bwFac = 3.1)),
+              check_true = c(NA, NA)))
+}
+
+# workflow:
+# setup
+# check_funcs
+# check_false
+# check_true
+# for seq_along check_funcs - if false check_false[1] else check_true[1] & break
+
+# bwFac_smallest = 1.1
+# neg_candidate_thres = asinh(10/5 + 1)
+# lower_peak_thres = 0.001

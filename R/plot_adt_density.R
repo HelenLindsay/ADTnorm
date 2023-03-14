@@ -1,3 +1,4 @@
+# plot_adt_density ----
 #' Plot the expression density profile with identified peak and valley locations
 #'
 #' This function plots adt expression density profile with identifies peak and
@@ -59,11 +60,10 @@ plot_adt_density = function(adt_count, cell_x_feature,
 
     # If there are peaks and / or valleys, add landmarks to the plot
     if (! is.null(peak_landmarks)){ p <- .add_landmarks(p, peak_landmarks) }
-    if (! is.null(valley_landmarks)){ p <- .add_landmarks(p, valley_landmarks)}
+    if (! is.null(valley_landmarks)){ p <- .add_landmarks(p, valley_landmarks) }
 
     return(p)
 }
-
 
 # .formatCounts -----
 .formatCounts <- function(cell_x_adt, cell_x_feature){
@@ -101,14 +101,14 @@ plot_adt_density = function(adt_count, cell_x_feature,
 #'
 #'@param p A ggplot object
 #'@param locs A matrix of landmark locations, e.g. as returned by ADTnorm
-.add_landmarks <- function(p, locs){
+.add_landmarks <- function(p, locs, lwd = 1){
     loc_df <- .make_loc_df(as.data.frame(locs))
 
     p <- p +
-      geom_segment(data = peak_location, linewidth = 1
+      geom_segment(data = peak_location, linewidth = lwd,
                  aes(x = peakx, xend = peakx, y = peaks,
                      yend = peaky + peaks)) +
-      geom_segment(data = valley_location, linewidth = 1,
+      geom_segment(data = valley_location, linewidth = lwd,
                    aes(x = peakx, xend = peakx, y = peaks,
                        yend = peaky + peaks), color = "grey")
     return(p)
