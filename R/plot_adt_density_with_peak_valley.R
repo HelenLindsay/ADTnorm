@@ -34,7 +34,6 @@
 # require(RColorBrewer)
 # require(tidyr)
 # require(ggridges)
-# require(ggpubr)
 plot_adt_density_with_peak_valley = function(cell_x_adt, cell_x_feature,
                                              adt_marker_select = NULL,
                                              peak_landmark_list,
@@ -104,13 +103,12 @@ plot_adt_density_with_peak_valley = function(cell_x_adt, cell_x_feature,
                          y = peaks, yend = peaky + peaks),
                      linewidth = 1, color = "grey") +
         facet_wrap(~ factor(ADT), scales = "free_x") +
+        scale_fill_manual(values = fillColor) +
         theme_bw(base_size = 20) +
         xlab(run_label) +
         ylab("") +
-        ggpubr::rotate_x_text(angle = 90) +
-        ggpubr::rremove("legend") +
-        scale_fill_manual(values = fillColor) +
-        ggpubr::rremove("legend.title")
+        theme(axis.text.x = element_text(angle = 90)) +
+        guides(fill = "none")
 
 
     if (ncol(peak_landmark_list) >= 2) {

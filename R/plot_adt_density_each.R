@@ -23,7 +23,6 @@
 # require(RColorBrewer)
 # require(tidyr)
 # require(ggridges)
-# require(ggpubr)
 plot_adt_density_each = function(adt_count, cell_x_feature, brewer_palettes,
                                  parameter_list = NULL) {
     if (is.null(parameter_list)) {

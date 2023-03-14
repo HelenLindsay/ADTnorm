@@ -31,7 +31,6 @@ Imports:
     EMDomics,
     fda,
     RColorBrewer,
-    ggpubr,
     ggridges
 Suggests:
     knitr,
