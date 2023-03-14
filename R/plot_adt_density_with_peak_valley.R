@@ -17,6 +17,7 @@
 #' @param brewer_palettes Set the color scheme of color brewer.
 #' @param parameter_list Users can specify: "run_label" to give name for this
 #' run; "bw" to adjust the band width of the density plot.
+#' @importFrom tidyr pivot_longer
 #' @export
 #' @examples
 #' \dontrun{
@@ -66,32 +67,25 @@ plot_adt_density_with_peak_valley = function(cell_x_adt, cell_x_feature,
         data.frame() %>%
         dplyr::select(all_of(adt_marker_select)) %>%
         data.frame() %>%
-        tidyr::gather(key = "ADT", value = "counts") %>%
-        mutate(
+        tidyr::pivot_longer(cols = everything(),
+                            names_to = "ADT", values_to = "counts") %>%
+        dplyr::mutate(
             sample = rep(cell_x_feature$sample, length(adt_marker_select)),
             batch = rep(cell_x_feature$batch, length(adt_marker_select))
         )
 
-    peak_location = list()
-    valley_location = list()
-    for (i in 1:ncol(peak_landmark_list)) {
-        peak_location[[i]] = data.frame(
-            ADT = adt_marker_select,
-            sample = cell_x_feature$sample %>% levels(),
-            peakx = peak_landmark_list[, i],
-            peaky = 0.5,
-            peaks = 1:length(levels(cell_x_feature$sample))
-        )
-        if (i <= ncol(valley_landmark_list)) {
-            valley_location[[i]] = data.frame(
-                ADT = adt_marker_select,
-                sample = cell_x_feature$sample %>% levels(),
-                peakx = valley_landmark_list[, i],
-                peaky = 0.5,
-                peaks = 1:length(levels(cell_x_feature$sample))
-            )
-        }
+
+    make_loc_df <- function(loc_df){
+      loc_df %>%
+        dplyr::mutate(sample = levels(cell_x_feature$sample),
+                      peaks = seq_along(levels(cell_x_feature$sample)),
+                      peaky = 0.5) %>%
+        tidyr::pivot_longer(cols = c(colnames(loc_df)), values_to = "peakx")
     }
+
+    peak_location = make_loc_df(as.data.frame(peak_landmark_list))
+    valley_location = make_loc_df(as.data.frame(valley_landmark_list))
+
     fillColor = grDevices::colorRampPalette(RColorBrewer::brewer.pal(8, brewer_palettes))(length(unique(tmpProfile$batch)))
 
     resPlot = ggplot(tmpProfile, aes(x = counts, y = sample)) +
