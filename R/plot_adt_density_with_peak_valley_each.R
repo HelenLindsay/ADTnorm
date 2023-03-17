@@ -34,7 +34,6 @@
 # require(RColorBrewer)
 # require(tidyr)
 # require(ggridges)
-# require(ggpubr)
 plot_adt_density_with_peak_valley_each = function(adt_count, cell_x_feature,
                                                   peak_landmark_list,
                                                   valley_landmark_list,

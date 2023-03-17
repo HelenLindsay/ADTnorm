@@ -39,7 +39,7 @@ detect_impute_outlier_valley <- function(valley_location_res, adt_marker_select,
         data.frame %>%
         mutate(sample = rownames(valley_location_res)) %>%
         left_join(valley_df, cell_x_feature %>%
-                                select(sample, batch) %>%
+                                dplyr::select(sample, batch) %>%
                                 unique,
                   by = "sample")
 
