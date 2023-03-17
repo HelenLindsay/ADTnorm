@@ -26,7 +26,12 @@
 #' }
 # require(flowStats)
 # require(dplyr)
-get_peak_mode = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marker_select = NULL, adt_marker_index = NULL, bwFac_smallest = 1.1, bimodal_marker_index = NULL, trimodal_marker_index = NULL, positive_peak = NULL, neg_candidate_thres = asinh(10/5 + 1), lower_peak_thres = 0.001, cd3_index = NULL, cd4_index = NULL, cd8_index = NULL) {
+get_peak_mode = function(cell_x_adt = NULL, cell_x_feature = NULL,
+                         adt_marker_select = NULL, adt_marker_index = NULL,
+                         bwFac_smallest = 1.1, bimodal_marker_index = NULL,
+                         trimodal_marker_index = NULL, positive_peak = NULL,
+                         neg_candidate_thres = asinh(10/5 + 1),
+                         lower_peak_thres = 0.001, cd3_index = NULL, cd4_index = NULL, cd8_index = NULL) {
 
     ## set parameters
     bwFac = 1.2
