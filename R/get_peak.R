@@ -60,14 +60,13 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
 
     peak_num = 0
     peak_loc = list()
-    peak_region = list()
 
     cell_x_adt <- as.matrix(cell_x_adt)
 
     # split matrix by sample?
 
     # get peak for each sample of this processing ADT marker
-    for(sample_name in sample_names){
+    for (sample_name in sample_names){
 
         # Setup data -------------------------------------------------
 
@@ -79,7 +78,6 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
             #result <- .no_peaks(sample_name)
 
             peak_loc[[sample_name]] = NA
-            peak_region[[sample_name]] = NA
             next
         }
 
@@ -87,7 +85,6 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
         if (n_unique_vals == 1){
             ## only one value for this marker
             peak_loc[[sample_name]] = NA
-            peak_region[[sample_name]] = matrix(NA, ncol = 2, nrow = 1)
             message(sample_name, "-Single Value!")
             next
         }
@@ -143,12 +140,10 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
                 if (length(peak_info$peaks[, "x"]) == 2) {
                     ## 2 peaks, perfect!
                     res = peak_info$peaks[, "x"]
-                    res_region = peak_info$regions
                 } else if (length(peak_info$peaks[, "x"]) > 2) {
                     ## more than 2 peaks, consider filtering out very low density peaks
                     peak_ind = peak_info$peaks[, "y"] > lower_peak_thres
                     res = peak_info$peaks[, "x"][peak_ind]
-                    res_region = peak_info$regions[peak_ind, ]
                 } else if (zero_prop > 0.3 && length(peak_info$peaks[, "x"]) < 2) {
                     ## less than 2 peaks and zero proportion is larger than 0.3,
                     # use finer bandwidth:fres1 instead of fres2
@@ -161,7 +156,6 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
                          ## peak number ==2 output results.
                          y_sum = peak_info$peaks[, 'y'] %>% sum
                          res = peak_info$peaks[, "x"]
-                         res_region = peak_info$regions
 
                          fres0 = flowCore::filter(fcs, flowStats::curv1Filter(adt,
                                                         bwFac = bwFac_smallest))
@@ -177,14 +171,12 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
                    (peak_info$peaks[, "x"][2] - peak_info$peaks[, "x"][1] > 0.3)){
                   ## if using the smallest bw obtain better peak mode, switch from fres1 to fres0 results
                   res = peak_info$peaks[, "x"][peak_info$peaks[, "y"] > lower_peak_thres]
-                  res_region = peak_info$regions[peak_info$peaks[, "y"] > lower_peak_thres, ]
                 }
 
 
               } else if (length(peak_info$peaks[, "x"]) > 2) {
                 ## using new bandwidth, too many peaks, consider filtering out very low density peaks
                 res = peak_info$peaks[, "x"][peak_info$peaks[, "y"] > lower_peak_thres]
-                res_region = peak_info$regions[peak_info$peaks[, "y"] > lower_peak_thres, ]
               } else if (length(peak_info$peaks[, "x"]) < 2) {
                 ## try with smallest bw to get more peak modes
                 fres0 = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = bwFac_smallest))
@@ -206,15 +198,12 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
                     to = to
                   )
                   res = peak_info$peaks[, "x"]
-                  res_region = peak_info$regions
                 }else if (length(peak_info$peaks[, "x"]) >= 2) {
                   ## using new bandwidth, too many peaks, consider filtering out very low density peaks
                   res = peak_info$peaks[, "x"][peak_info$peaks[, "y"] > lower_peak_thres]
-                  res_region = peak_info$regions[peak_info$peaks[, "y"] > lower_peak_thres, ]
                 }else{
                   ## still one peak left
                   res = peak_info$peaks[, "x"]
-                  res_region = peak_info$regions
                 }
               }
             } else if (zero_prop <= 0.3 && length(peak_info$peaks[, "x"]) < 2) {
@@ -235,23 +224,18 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
                                                   from = from, to = to)
 
                 res = peak_info$peaks[, "x"]
-                res_region = peak_info$regions
               }else if (length(peak_info$peaks[, "x"]) <= 2) {
                 res = peak_info$peaks[, "x"]
-                res_region = peak_info$regions
               } else if (length(peak_info$peaks[, "x"]) > 2) {
                 res = peak_info$peaks[, "x"][peak_info$peaks[, "y"] > lower_peak_thres]
-                res_region = peak_info$regions[peak_info$peaks[, "y"] > lower_peak_thres, ]
               }
             } else {
               ## no other cases?
               res = peak_info$peaks[, "x"][peak_info$peaks[, "y"] > lower_peak_thres]
-              res_region = peak_info$regions[peak_info$peaks[, "y"] > lower_peak_thres, ]
             }
           } else {
             ## not in user defined marker list, can have 1 peaks. Filter very low density peaks
             res = peak_info$peaks[, "x"][peak_info$peaks[, "y"] > lower_peak_thres]
-            res_region = peak_info$regions[peak_info$peaks[, "y"] > lower_peak_thres, ]
           }
         } ## end of other marker processing
 
@@ -274,24 +258,16 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
           if ((adt %in% bimodal_marker_index) && (length(peak_infoTmp$midpoints) == 2)) {
             ## if user define this marker to have 2 peaks.
             resTmp = peak_infoTmp$midpoints
-            res_regionTmp = peak_infoTmp$regions
           } else {
             # If it's supposed to have 2 peaks but doesn't, filter
             resTmp = peak_infoTmp$midpoints[peak_infoTmp$peaks[, "y"] > lower_peak_thres]
-            res_regionTmp = peak_infoTmp$regions[peak_infoTmp$peaks[, "y"] > lower_peak_thres, ]
           }
 
           indTmp = which(!is.na(resTmp))
           resTmp = resTmp[indTmp]
-          if (is.null(nrow(res_regionTmp))) {
-            res_regionTmp = res_regionTmp %>%
-              as.matrix() %>%
-              t()
-          }
-          res_regionTmp = res_regionTmp[indTmp, ]
+
           if (length(resTmp) > 1 && (sum(resTmp < 2) < length(resTmp))) {
             res = resTmp
-            res_region = res_regionTmp
           }
         }
 
@@ -299,7 +275,6 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
         if (length(res) > 1 && zero_prop < 0.3 && (sum(res < neg_candidate_thres) < length(res))) {
           if (peak_info$peaks[1, "x"] < 0.9 && peak_info$peaks[1, "y"] < 1 && peak_info$peaks[2, "x"] > 2 && peak_info$peaks[2, "y"] / peak_info$peaks[1, "y"] > 5) {
             res = res[-1]
-            res_region = res_region[-1, ]
           }
         }
 
@@ -307,21 +282,18 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
         if (length(res) > 1 && zero_prop > 0.5 && (sum(res < neg_candidate_thres) == length(res))) {
           max_peak <- which(peak_info$peaks[, "y"] == max(peak_info$peak[, "y"]))
           res = peak_info$peaks[, "x"][max_peak]
-          res_region = peak_info$regions[max_peak, ]
         }
 
-        ## record peak mode and peak regions
+        ## record peak mode
         peak_num = max(peak_num, length(res))
         peak_loc[[sample_name]] = res
-        peak_region[[sample_name]] = matrix(NA, ncol = 2, nrow = length(res))
-        peak_region[[sample_name]][1:length(res), ] = res_region
 
 
    ## end of for loop for sample_name in sample_names
 
   # -----------------------------------
   # can we cut peak_num above?
-  landmark <- .adjust_peak_indices(peak_locs, peak_regions, pos_idxs)
+  landmark <- .adjust_peak_indices(peak_locs, pos_idxs)
 
   ## if all the peaks are within 1 - highly likely that there is only one negative peak
   if (max(landmark[!is.na(landmark)]) < neg_candidate_thres) {
@@ -398,12 +370,11 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
 # .get_peaks ----
 .get_peaks <- function(sample_name, peak_loc, lower_peak_thres = 0){
     if (is.null(peak_loc)){
-        return(list(sample = sample_name, peak_loc = NA, peak_region = NA))
+        return(list(sample = sample_name, peak_loc = NA))
     }
     peak_ind = peak_info$peaks[, "y"] > lower_peak_thres
     res = peak_info$peaks[, "x"][peak_ind]
-    res_region = peak_info$regions[peak_ind, ]
-    return(list(sample = sample_name, peak_loc = res, peak_region = res_region))
+    return(list(sample = sample_name, peak_loc = res))
 }
 
 # .random_noise ----
@@ -425,7 +396,7 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
 
 
 # .adjust_peak_indices ----
-.adjust_peak_indices <- function(peak_locs, peak_regions, pos_idxs){
+.adjust_peak_indices <- function(peak_locs, pos_idxs){
     ## initiate landmark to record peak mode location
     landmark = matrix(NA, ncol = peak_num, nrow = length(sample_names))
     rownames(landmark) = sample_names
@@ -447,6 +418,7 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
     return(landmarks)
 }
 
+# .all_negative_peaks ----
 .all_negative_peaks <- function(landmark, sample_names){
     landmarkAllMedian = stats::median(landmark[!is.na(landmark)])
     has_peak <- rowSums(! is.na(landmark)) > 0
