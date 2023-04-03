@@ -317,70 +317,16 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
         peak_region[[sample_name]][1:length(res), ] = res_region
 
 
-
    ## end of for loop for sample_name in sample_names
 
-  ## initiate landmark to record peak mode location
-  landmark = matrix(NA, ncol = peak_num, nrow = length(sample_names))
-  landmarkRegion = list()
-  for (i in seq_len(peak_num)) {
-    landmarkRegion[[i]] = matrix(NA, ncol = 2, nrow = length(sample_names))
-    rownames(landmarkRegion[[i]]) = sample_names
-  }
-  rownames(landmark) = sample_names
-  for (i in names(peak_loc)) { ## go through samples
-    if (!is.na(peak_loc[[i]][1])) { ## if the peak modes are detected
-      peak_locNum = length(peak_loc[[i]])
-
-      if (peak_locNum == 1) {
-
-        ## check if the only peak should be positive peak
-        pos_marker_index = which(paste0("tmpName", positive_peak$ADT_index) == adt)
-        pos_sample_index = which(positive_peak$sample == names(peak_loc)[i])
-
-        if (length(intersect(pos_marker_index, pos_sample_index)) > 0) {
-          landmark[i, min(2, peak_num)] = peak_loc[[i]]
-          landmarkRegion[[min(2, peak_num)]][i, ] = peak_region[[i]]
-        } else {
-          landmark[i, 1] = peak_loc[[i]]
-          landmarkRegion[[1]][i, ] = peak_region[[i]]
-        }
-      } else if (peak_locNum == 2) {
-        landmark[i, c(1, max(2, peak_num))] = peak_loc[[i]]
-
-        landmarkRegion[[1]][i, ] = peak_region[[i]][1, ]
-        landmarkRegion[[max(2, peak_num)]][i, ] = peak_region[[i]][2, ]
-      } else if (peak_locNum == 3) {
-        landmark[i, c(1, 2, max(3, peak_num))] = peak_loc[[i]]
-        landmarkRegion[[1]][i, ] = peak_region[[i]][1, ]
-        landmarkRegion[[2]][i, ] = peak_region[[i]][2, ]
-        landmarkRegion[[max(3, peak_num)]][i, ] = peak_region[[i]][3, ]
-      } else {
-        landmark[i, 1:peak_locNum] = peak_loc[[i]]
-        for (k in 1:peak_locNum) {
-          landmarkRegion[[k]][i, ] = peak_region[[i]][k, ]
-        }
-      }
-    }
-  }
+  # -----------------------------------
+  # can we cut peak_num above?
+  landmark <- .adjust_peak_indices(peak_locs, peak_regions, pos_idxs)
 
   ## if all the peaks are within 1 - highly likely that there is only one negative peak
   if (max(landmark[!is.na(landmark)]) < neg_candidate_thres) {
-    landmark_new = matrix(NA, ncol = 1, nrow = nrow(landmark))
-    landmarkAllMedian = stats::median(landmark[!is.na(landmark)])
-    for (i in 1:nrow(landmark)) {
-      landmark_nonNA = landmark[i, !is.na(landmark[i, ])]
-      if (length(landmark_nonNA) > 0) {
-        landmark_new[i, ] = landmark[i, which.min(abs(landmark_nonNA - landmarkAllMedian))]
-      } else {
-        landmark_new[i, ] = NA
-      }
-    }
-    landmark = landmark_new
+    landmark <- .all_negative_peaks(landmark, sample_names)
   }
-  rownames(landmark) = sample_names
-
-
   return(landmark)
 }
 
@@ -428,8 +374,6 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
     eval(expr)
   #dot_res <- lapply(list(...), eval)
 }
-
-
 
 # .update_flowframe ----
 .update_flowframe <- function(obj, ...){
@@ -479,6 +423,42 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
 }
 
 
+
+# .adjust_peak_indices ----
+.adjust_peak_indices <- function(peak_locs, peak_regions, pos_idxs){
+    ## initiate landmark to record peak mode location
+    landmark = matrix(NA, ncol = peak_num, nrow = length(sample_names))
+    rownames(landmark) = sample_names
+
+    n_peaks <- lengths(peak_locs)
+    n_peaks[is.na(peak_locs)] <- 0
+    max_peaks <- max(n_peaks)
+    peak_align <- unlist(lapply(n_peaks, seq_len)) # idxs
+    total_peaks <- rep(n_peaks, n_peaks) # totals corresponding to each idx
+
+    # TO DO get positive peak indices
+    peak_align[is_pos & total_peaks == 1] <- max_peaks
+
+    # If we find >1 peaks, set the last peak to max_peaks
+    peak_align[total_peaks >= 2 & peak_idxs == total_peaks] <- max_peaks
+
+    row_offset <- rep(seq_along(n_peaks), n_peaks)
+    landmarks[cbind(row_offset, peak_align)] <- unlist(peak_locs)
+    return(landmarks)
+}
+
+.all_negative_peaks <- function(landmark, sample_names){
+    landmarkAllMedian = stats::median(landmark[!is.na(landmark)])
+    has_peak <- rowSums(! is.na(landmark)) > 0
+    row_mins <- apply(abs(landmark[has_peak, , drop=FALSE] - landmarkAllMedian),
+                      1, min, na.rm = TRUE)
+    landmark = rep(NA, nrow(landmark))
+    landmark[has_peak] <- row_mins
+    landmark <- as.matrix(landmark, ncol = 1)
+    rownames(landmark) = sample_names
+    return(landmark)
+}
+
 # Workflows --------------------------------------------------------------
 
 # NOTHING DONE WITH THRESHOLD YET
@@ -488,7 +468,6 @@ trimodal_workflow <- function(bwFac_smallest, threshold = NULL){
                 checks = list(.check_npeaks(`==`, 3, msg = tri_msg)),
                 check_false = list(list(bwFac = bwFac_smallest + 0.5))))
 }
-
 
 unknown_workflow <- function(bwFac_smallest){
   return(list(setup = list(bwFac = .bw_by_zero_prop),
