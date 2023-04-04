@@ -1,3 +1,5 @@
+# TO DO: DEFINITION OF positive_peak changed!
+
 #' Get the peak landmark locations
 #'
 #' This function detect the peak landmark locations for each sample per ADT
@@ -17,9 +19,8 @@
 #' @param n_expected_peaks How many peaks are expected based on researchers'
 #' prior knowledge (e.g. CD4 usually has 3 peaks) or preliminary observation on
 #' particular data to be processed.  Should be 2 or 3.
-#' @param positive_peak A list variable containing a vector of ADT marker(s)
-#' and a corresponding vector of sample name(s) in matching order to specify
-#' that the uni-peak detected should be aligned to positive peaks. For example,
+#' @param positive_peak A vector of sample name(s) to specify that when a
+#' single peak is detected it should be aligned to positive peaks. For example,
 #' for samples that only contain T cells, the only CD3 peak should be aligned
 #' to positive peaks of other samples.
 #' @param neg_candidate_thres The upper bound for the negative peak. Users can
@@ -292,12 +293,12 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
    ## end of for loop for sample_name in sample_names
 
   # -----------------------------------
-  # can we cut peak_num above?
   landmark <- .adjust_peak_indices(peak_locs, pos_idxs)
 
-  ## if all the peaks are within 1 - highly likely that there is only one negative peak
+  ## if all the peaks are within 1 it is highly likely that there
+  ## is only one negative peak
   if (max(landmark[!is.na(landmark)]) < neg_candidate_thres) {
-    landmark <- .all_negative_peaks(landmark, sample_names)
+    landmark <- .all_negative_peaks(landmark)
   }
   return(landmark)
 }
@@ -396,39 +397,41 @@ get_peak = function(cell_x_adt, cell_x_feature, adt,
 
 
 # .adjust_peak_indices ----
-.adjust_peak_indices <- function(peak_locs, pos_idxs){
-    ## initiate landmark to record peak mode location
-    landmark = matrix(NA, ncol = peak_num, nrow = length(sample_names))
-    rownames(landmark) = sample_names
-
+# If running via ADTnorm function as intended, validity of pos_samples has
+# already been checked.
+.adjust_peak_indices <- function(peak_locs, pos_samples = NULL){
     n_peaks <- lengths(peak_locs)
     n_peaks[is.na(peak_locs)] <- 0
     max_peaks <- max(n_peaks)
     peak_align <- unlist(lapply(n_peaks, seq_len)) # idxs
     total_peaks <- rep(n_peaks, n_peaks) # totals corresponding to each idx
 
-    # TO DO get positive peak indices
-    peak_align[is_pos & total_peaks == 1] <- max_peaks
+    ## initiate landmark to record peak mode location
+    landmark = matrix(NA, ncol = max_peaks, nrow = length(peak_locs))
+    rownames(landmark) = names(peak_locs)
+
+    if (! is.null(pos_samples)){
+        is_pos <- names(peak_locs) %in% pos_samples
+        peak_align[is_pos & total_peaks == 1] <- max_peaks
+    }
 
     # If we find >1 peaks, set the last peak to max_peaks
-    peak_align[total_peaks >= 2 & peak_idxs == total_peaks] <- max_peaks
+    peak_align[total_peaks > 1 & peak_align == total_peaks] <- max_peaks
 
     row_offset <- rep(seq_along(n_peaks), n_peaks)
-    landmarks[cbind(row_offset, peak_align)] <- unlist(peak_locs)
-    return(landmarks)
+    landmark[cbind(row_offset, peak_align)] <- unlist(peak_locs)
+    return(landmark)
 }
 
 # .all_negative_peaks ----
-.all_negative_peaks <- function(landmark, sample_names){
+.all_negative_peaks <- function(landmark){
     landmarkAllMedian = stats::median(landmark[!is.na(landmark)])
     has_peak <- rowSums(! is.na(landmark)) > 0
     row_mins <- apply(abs(landmark[has_peak, , drop=FALSE] - landmarkAllMedian),
                       1, min, na.rm = TRUE)
-    landmark = rep(NA, nrow(landmark))
+    landmark[] <- NA
     landmark[has_peak] <- row_mins
-    landmark <- as.matrix(landmark, ncol = 1)
-    rownames(landmark) = sample_names
-    return(landmark)
+    return(landmark[, 1, drop=FALSE])
 }
 
 # Workflows --------------------------------------------------------------
@@ -442,29 +445,29 @@ trimodal_workflow <- function(bwFac_smallest, threshold = NULL){
 }
 
 unknown_workflow <- function(bwFac_smallest){
-  return(list(setup = list(bwFac = .bw_by_zero_prop),
-              checks = c(.check_npeaks(`>=`, 1),
-                              .check_npeaks(`>=`, 1),
-                              .check_npeaks(`==`, 2)),
-              # Args for .update_flowframe
-              check_false = c(list(bwFac = bwFac_smallest),
-                              list(random = TRUE, bwFac = 3.1)),
-              check_true = c(NA, NA)))
+    return(list(setup = list(bwFac = .bw_by_zero_prop),
+                checks = c(.check_npeaks(`>=`, 1),
+                                .check_npeaks(`>=`, 1),
+                                .check_npeaks(`==`, 2)),
+                # Args for .update_flowframe
+                check_false = c(list(bwFac = bwFac_smallest),
+                                list(random = TRUE, bwFac = 3.1)),
+                check_true = c(NA, NA)))
 }
 
 bimodal_workflow <- function(){
-  return(list(setup = list(bwFac = .bw_by_zero_prop),
-              # unknown workflow is also run for bimodal...
+    return(list(setup = list(bwFac = .bw_by_zero_prop),
+                # unknown workflow is also run for bimodal...
 
 
-              checks = c(.check_npeaks(`==`, 2), # return, no threshold
-                         .check_npeaks(`>=`, 2), # return, w threshold
-                         .check_npeaks(`>`, 3, expr(zero_prop > 0.3))),
+                checks = c(.check_npeaks(`==`, 2), # return, no threshold
+                           .check_npeaks(`>=`, 2), # return, w threshold
+                           .check_npeaks(`>`, 3, expr(zero_prop > 0.3))),
 
-              # Args for .update_flowframe
-              check_false = c(NA, NA, NA),
-              check_true = c(NA, NA, c(bwFac = 2, border = 0))
-              ))
+                # Args for .update_flowframe
+                check_false = c(NA, NA, NA),
+                check_true = c(NA, NA, c(bwFac = 2, border = 0))
+                ))
 }
 
 
@@ -480,6 +483,7 @@ bimodal_workflow <- function(){
 
 trimodal <- trimodal_workflow(1.1)
 cd4 <- trimodal_workflow(1.1, threshold = 0.001)
+
 
 
 
