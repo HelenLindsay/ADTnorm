@@ -1,6 +1,3 @@
-# test that it works with a sample with zero peaks
-
-
 # .adjust_peak_indices ----
 test_that(".adjust_peak_indices works as expected", {
     peak_locs <- list(A = c(0.5, 1),
@@ -45,3 +42,6 @@ test_that(".all_negative_peaks works as expected", {
                             dimnames = list(c("A", "B", "C","D"), NULL))
     expect_equal(.all_negative_peaks(landmark), exp_landmarks)
 })
+
+# triana_2021_AML1 has lots of peaks!
+# very large peak triana_2021_BM1
