@@ -260,9 +260,9 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL, save_outpath = NULL
             midpoint_type = midpoint_type,
             neg_candidate_thres = neg_candidate_thres
         )
-        if(!is.null(target_landmark_location)){ ## specify the locations where negative peak, valley, and positive peak should align to
-            if(landmark_align_type == "negPeak_valley_posPeak"){
-                if(ncol(peak_mode_res) == 1){
+        if (!is.null(target_landmark_location)){ ## specify the locations where negative peak, valley, and positive peak should align to
+            if (landmark_align_type == "negPeak_valley_posPeak"){
+                if (ncol(peak_mode_res) == 1){
                     target_landmark = c(target_landmark_location[1], round(mean(target_landmark_location), 1))
                 }else if(ncol(peak_mode_res) == 2){
                     target_landmark = c(target_landmark_location[1], round(mean(target_landmark_location), 1), target_landmark_location[2])

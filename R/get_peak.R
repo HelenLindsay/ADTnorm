@@ -101,14 +101,7 @@ get_peak = function(adt, samples, n_expected_peaks = 2,
 
             ## User defined the marker that is known to usually have multiple peaks (n = 2)
             if (adt_marker_index %in% bimodal_marker_index) {
-                if (length(peak_info$peaks[, "x"]) == 2) {
-                    ## 2 peaks, perfect!
-                    res = peak_info$peaks[, "x"]
-                } else if (length(peak_info$peaks[, "x"]) > 2) {
-                    ## more than 2 peaks, consider filtering out very low density peaks
-                    peak_ind = peak_info$peaks[, "y"] > lower_peak_thres
-                    res = peak_info$peaks[, "x"][peak_ind]
-                } else if (zero_prop > 0.3 && length(peak_info$peaks[, "x"]) < 2) {
+              if (zero_prop > 0.3 && length(peak_info$peaks[, "x"]) < 2) {
                     ## less than 2 peaks and zero proportion is larger than 0.3,
                     # use finer bandwidth:fres1 instead of fres2
 
@@ -133,7 +126,7 @@ get_peak = function(adt, samples, n_expected_peaks = 2,
 
                 if((length(peak_info$peaks[, "x"]) >= 2) &&
                    (sum(peak_info$peaks[, 'y']) > y_sum) &&
-                   (peak_info$peaks[, "x"][2] - peak_info$peaks[, "x"][1] > 0.3)){
+                   (.diff_first_two(peak_info) > 0.3)){
                   ## if using the smallest bw obtain better peak mode, switch from fres1 to fres0 results
                   res = peak_info$peaks[, "x"][peak_info$peaks[, "y"] > lower_peak_thres]
                 }
@@ -152,7 +145,7 @@ get_peak = function(adt, samples, n_expected_peaks = 2,
                   from = adt_range$from,
                   to = adt_range$to
                 )
-                if (..na_or_close_peaks(peak_info, 0.5)){
+                if (.na_or_close_peaks(peak_info, 0.5)){
 
                   ## smallest bw may lead to NA midpoint or peaks that are too close due to discrete value
                   peak_info = flowStats::curvPeaks(
@@ -299,9 +292,9 @@ get_peak = function(adt, samples, n_expected_peaks = 2,
 }
 
 # .check_npeaks ----
-# Return a function for checking the number of peaksm args prefilled
+# Return a function for checking the number of peaks with some args prefilled
 # (e.g. `<=`, `==`)
-.check_npeaks <- function(compare_f, n_expected, msg = NULL){
+.check_npeaks <- function(compare_f, n_expected, msg=NULL){
     check_peaks <- function(peak_info){
         result <- compare_f(length(peak_info$peaks[, "x"]), n_expected)
         if (! is.null(msg) & isFALSE(result)) { message(msg) }
@@ -310,17 +303,20 @@ get_peak = function(adt, samples, n_expected_peaks = 2,
     return(check_peaks)
 }
 
-.check_npeaks_test <- function(peak_info, f, n_expected,
-                               msg = NULL, ...){
+.check_npeaks_test <- function(peak_info, f, n_expected, msg=NULL, ...){
     result <- f(nrow(peak_info$peaks), n_expected)
     dot_res <- sapply(list(...), eval)
     print(c(result, dot_res))
-
 }
 
-.check_npeaks_2 <- function(peak_info, expr, n_expected, msg = NULL, ...){
+.check_npeaks_2 <- function(peak_info, expr, n_expected, msg=NULL, ...){
     eval(expr)
   #dot_res <- lapply(list(...), eval)
+}
+
+## TO DO: LOG BANDWIDTH AND PEAKS BEFORE CHANGING
+.log_peaks <- function(obj, peak_info){
+    # Log bw, n_peaks, peak_loc, peak_sum?
 }
 
 # .update_flowframe ----
@@ -336,15 +332,13 @@ get_peak = function(adt, samples, n_expected_peaks = 2,
 }
 
 
-
 # .get_peaks ----
-.get_peaks <- function(sample_name, peak_loc, lower_peak_thres = 0){
-    if (is.null(peak_loc)){
-        return(list(sample = sample_name, peak_loc = NA))
-    }
-    peak_ind = peak_info$peaks[, "y"] > lower_peak_thres
-    res = peak_info$peaks[, "x"][peak_ind]
-    return(list(sample = sample_name, peak_loc = res))
+.get_peaks <- function(peak_loc, peak_type = "peaks", lower_peak_thres=0){
+    if (is.null(peak_loc)){ return(NA) }
+
+    peak_ind = peak_info[[peak_type]][, "y"] > lower_peak_thres
+    res = peak_info[[peak_type]][, "x"][peak_ind]
+    return(res)
 }
 
 
@@ -360,14 +354,22 @@ get_peak = function(adt, samples, n_expected_peaks = 2,
 }
 
 
+
+compare_bw <- function(peak_info, obj, bw2, compare_func){
+    # Compare bw currently in obj with second bw according to compare func
+
+
+}
+
+
 # Workflows --------------------------------------------------------------
 
-.run_workflow <- function(fcs_obj, workflow, adt_range){
+.run_workflow <- function(fcs_obj, workflow, adt_range, ...){
     for (i in seq_along(workflow$checks)){
         print(i)
         peak_info <- .run_curvPeaks(fcs_obj$fcs, colnames(adt), fcs_obj$bwFac,
                                     fcs_obj$border, adt_range)
-        result <- workflow$checks[[i]](peak_info)
+        result <- workflow$checks[[i]](peak_info, ...)
         if (isFALSE(result)){
           fcs_obj <- .update_flowframe(fcs_obj, workflow$check_false[[i]])
         }
@@ -400,7 +402,6 @@ bimodal_workflow <- function(){
     return(list(setup = list(bwFac = .bw_by_zero_prop),
                 # unknown workflow is also run for bimodal...
 
-
                 checks = c(.check_npeaks(`==`, 2), # return, no threshold
                            .check_npeaks(`>=`, 2), # return, w threshold
                            .check_npeaks(`<`, 2, expr(zero_prop > 0.3))),
@@ -410,18 +411,51 @@ bimodal_workflow <- function(){
                 check_true = c(NA, NA, c(bwFac = 2, border = 0))
                 ))
 }
-# in bimodal workflow, if npeaks < 2, zero_prop > 0.3:
+
+
+high_zero_few_peaks_workflow <- function(){
+    # two peaks -> try a different bandwidth
+    list(setup = list(bwFac = 2, border = 2),
+         checks = c(.check_npeaks(`==`, 2), # if two peaks, change bw, update peak_info
+                    .compare_peak_sep(),
+                    .check_npeaks(`>`, 2), # return w threshold
+                    .check_npeaks(`<`, 2), # set bw smaller
+                    .na_or_close_peaks(0.5), # go back to fres1 = 3
+         check_false = c(NA, NA, NA),
+         check_true = c(update_peak_info, return, return_thres,
+                        c(bwFac = bwFac_smallest, border = 0),
+                        c(bwFac = 3, border = 0)))
+
+
+
+} else if (length(peak_info$peaks[, "x"]) > 2) {
+  ## using new bandwidth, too many peaks, consider filtering out very low density peaks
+  res = peak_info$peaks[, "x"][peak_info$peaks[, "y"] > lower_peak_thres]
+} else if (length(peak_info$peaks[, "x"]) < 2) {
+  ## try with smallest bw to get more peak modes
+  fres0 = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = bwFac_smallest))
+  peak_info = flowStats::curvPeaks(
+    x = fres0,
+    dat = adt_expression,
+    borderQuant = 0,
+    from = adt_range$from,
+    to = adt_range$to
+  )
+
+}
 
 # compare bwFac 2 and bwFac_smallest
 # peaks with smallest >= 2 & sum of peak heights increased
 # and difference >3 between second and first peak locs with bw_smallest
 #  - then use smallest with threshold
+# if now have too many peaks, use threshold
 
 
 
 all_peaks_small_workflow <- function(){
 
 }
+
 
 
 
