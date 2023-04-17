@@ -256,7 +256,8 @@ get_peak = function(adt, samples, n_expected_peaks = 2,
    ## end of for loop for sample_name in sample_names
 
   # -----------------------------------
-  landmark <- .adjust_peak_indices(peak_locs, pos_idxs)
+  # TO DO: check that positive peak is defined as this function expects
+  landmark <- .adjust_peak_indices(peak_locs, positive_peak)
 
   ## if all the peaks are within 1 it is highly likely that there
   ## is only one negative peak

@@ -435,65 +435,73 @@ get_peak_midpoint = function(cell_x_adt, cell_x_feature, log_file,
 
     } ## end of for loop for sample_name in sample_name_list
 
-    ## initiate landmark to record peak mode location
-    landmark = matrix(NA, ncol = peak_num, nrow = length(sample_name_list))
-    landmarkRegion = list()
-    for (i in seq_len(peak_num)) {
-        landmarkRegion[[i]] = matrix(NA, ncol = 2, nrow = length(sample_name_list))
-        rownames(landmarkRegion[[i]]) = sample_name_list
-    }
-    rownames(landmark) = sample_name_list
-    for (i in names(peak_mode)) { ## go through samples
-        if (!is.na(peak_mode[[i]][1])) { ## if the peak modes are detected
-            peak_modeNum = length(peak_mode[[i]])
+    landmark <- .adjust_peak_indices(peak_locs, positive_peak)
 
-            if (peak_modeNum == 1) {
-
-                ## check if the only peak should be positive peak
-                pos_marker_index = which(paste0("tmpName", positive_peak$ADT_index) == adt_marker_select)
-                pos_sample_index = which(positive_peak$sample == names(peak_mode)[i])
-
-                if (length(intersect(pos_marker_index, pos_sample_index)) > 0) {
-                    landmark[i, min(2, peak_num)] = peak_mode[[i]]
-                    landmarkRegion[[min(2, peak_num)]][i, ] = peak_region[[i]]
-                } else {
-                    landmark[i, 1] = peak_mode[[i]]
-                    landmarkRegion[[1]][i, ] = peak_region[[i]]
-                }
-            } else if (peak_modeNum == 2) {
-                landmark[i, c(1, max(2, peak_num))] = peak_mode[[i]]
-
-                landmarkRegion[[1]][i, ] = peak_region[[i]][1, ]
-                landmarkRegion[[max(2, peak_num)]][i, ] = peak_region[[i]][2, ]
-            } else if (peak_modeNum == 3) {
-                landmark[i, c(1, 2, max(3, peak_num))] = peak_mode[[i]]
-                landmarkRegion[[1]][i, ] = peak_region[[i]][1, ]
-                landmarkRegion[[2]][i, ] = peak_region[[i]][2, ]
-                landmarkRegion[[max(3, peak_num)]][i, ] = peak_region[[i]][3, ]
-            } else {
-                landmark[i, 1:peak_modeNum] = peak_mode[[i]]
-                for (k in 1:peak_modeNum) {
-                    landmarkRegion[[k]][i, ] = peak_region[[i]][k, ]
-                }
-            }
-        }
-    }
-
-    ## if all the peaks are within 1 - highly likely that there is only one negative peak
+    ## if all the peaks are within 1 it is highly likely that there
+    ## is only one negative peak
     if (max(landmark[!is.na(landmark)]) < neg_candidate_thres) {
-        landmark_new = matrix(NA, ncol = 1, nrow = nrow(landmark))
-        landmarkAllMedian = stats::median(landmark[!is.na(landmark)])
-        for (i in 1:nrow(landmark)) {
-            landmark_nonNA = landmark[i, !is.na(landmark[i, ])]
-            if (length(landmark_nonNA) > 0) {
-                landmark_new[i, ] = landmark[i, which.min(abs(landmark_nonNA - landmarkAllMedian))]
-            } else {
-                landmark_new[i, ] = NA
-            }
-        }
-        landmark = landmark_new
+      landmark <- .all_negative_peaks(landmark)
     }
-    rownames(landmark) = sample_name_list
+
+    # ## initiate landmark to record peak mode location
+    # landmark = matrix(NA, ncol = peak_num, nrow = length(sample_name_list))
+    # landmarkRegion = list()
+    # for (i in seq_len(peak_num)) {
+    #     landmarkRegion[[i]] = matrix(NA, ncol = 2, nrow = length(sample_name_list))
+    #     rownames(landmarkRegion[[i]]) = sample_name_list
+    # }
+    # rownames(landmark) = sample_name_list
+    # for (i in names(peak_mode)) { ## go through samples
+    #     if (!is.na(peak_mode[[i]][1])) { ## if the peak modes are detected
+    #         peak_modeNum = length(peak_mode[[i]])
+    #
+    #         if (peak_modeNum == 1) {
+    #
+    #             ## check if the only peak should be positive peak
+    #             pos_marker_index = which(paste0("tmpName", positive_peak$ADT_index) == adt_marker_select)
+    #             pos_sample_index = which(positive_peak$sample == names(peak_mode)[i])
+    #
+    #             if (length(intersect(pos_marker_index, pos_sample_index)) > 0) {
+    #                 landmark[i, min(2, peak_num)] = peak_mode[[i]]
+    #                 landmarkRegion[[min(2, peak_num)]][i, ] = peak_region[[i]]
+    #             } else {
+    #                 landmark[i, 1] = peak_mode[[i]]
+    #                 landmarkRegion[[1]][i, ] = peak_region[[i]]
+    #             }
+    #         } else if (peak_modeNum == 2) {
+    #             landmark[i, c(1, max(2, peak_num))] = peak_mode[[i]]
+    #
+    #             landmarkRegion[[1]][i, ] = peak_region[[i]][1, ]
+    #             landmarkRegion[[max(2, peak_num)]][i, ] = peak_region[[i]][2, ]
+    #         } else if (peak_modeNum == 3) {
+    #             landmark[i, c(1, 2, max(3, peak_num))] = peak_mode[[i]]
+    #             landmarkRegion[[1]][i, ] = peak_region[[i]][1, ]
+    #             landmarkRegion[[2]][i, ] = peak_region[[i]][2, ]
+    #             landmarkRegion[[max(3, peak_num)]][i, ] = peak_region[[i]][3, ]
+    #         } else {
+    #             landmark[i, 1:peak_modeNum] = peak_mode[[i]]
+    #             for (k in 1:peak_modeNum) {
+    #                 landmarkRegion[[k]][i, ] = peak_region[[i]][k, ]
+    #             }
+    #         }
+    #     }
+    # }
+    #
+    # ## if all the peaks are within 1 - highly likely that there is only one negative peak
+    # if (max(landmark[!is.na(landmark)]) < neg_candidate_thres) {
+    #     landmark_new = matrix(NA, ncol = 1, nrow = nrow(landmark))
+    #     landmarkAllMedian = stats::median(landmark[!is.na(landmark)])
+    #     for (i in 1:nrow(landmark)) {
+    #         landmark_nonNA = landmark[i, !is.na(landmark[i, ])]
+    #         if (length(landmark_nonNA) > 0) {
+    #             landmark_new[i, ] = landmark[i, which.min(abs(landmark_nonNA - landmarkAllMedian))]
+    #         } else {
+    #             landmark_new[i, ] = NA
+    #         }
+    #     }
+    #     landmark = landmark_new
+    # }
+    #rownames(landmark) = sample_name_list
 
 
     return(landmark)
