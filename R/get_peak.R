@@ -424,25 +424,25 @@ high_zero_few_peaks_workflow <- function(){
          check_false = c(NA, NA, NA),
          check_true = c(update_peak_info, return, return_thres,
                         c(bwFac = bwFac_smallest, border = 0),
-                        c(bwFac = 3, border = 0)))
-
-
-
-} else if (length(peak_info$peaks[, "x"]) > 2) {
-  ## using new bandwidth, too many peaks, consider filtering out very low density peaks
-  res = peak_info$peaks[, "x"][peak_info$peaks[, "y"] > lower_peak_thres]
-} else if (length(peak_info$peaks[, "x"]) < 2) {
-  ## try with smallest bw to get more peak modes
-  fres0 = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = bwFac_smallest))
-  peak_info = flowStats::curvPeaks(
-    x = fres0,
-    dat = adt_expression,
-    borderQuant = 0,
-    from = adt_range$from,
-    to = adt_range$to
-  )
+                        c(bwFac = 3, border = 0))))
 
 }
+
+# } else if (length(peak_info$peaks[, "x"]) > 2) {
+#   ## using new bandwidth, too many peaks, consider filtering out very low density peaks
+#   res = peak_info$peaks[, "x"][peak_info$peaks[, "y"] > lower_peak_thres]
+# } else if (length(peak_info$peaks[, "x"]) < 2) {
+#   ## try with smallest bw to get more peak modes
+#   fres0 = flowCore::filter(fcs, flowStats::curv1Filter(adt, bwFac = bwFac_smallest))
+#   peak_info = flowStats::curvPeaks(
+#     x = fres0,
+#     dat = adt_expression,
+#     borderQuant = 0,
+#     from = adt_range$from,
+#     to = adt_range$to
+#   )
+
+
 
 # compare bwFac 2 and bwFac_smallest
 # peaks with smallest >= 2 & sum of peak heights increased

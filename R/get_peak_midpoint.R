@@ -26,9 +26,13 @@
 #' }
 # require(flowStats)
 # require(dplyr)
-get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marker_select = NULL, adt_marker_index = NULL,
-                             bwFac_smallest = 1.1, bimodal_marker_index = NULL, trimodal_marker_index = NULL,
-                             positive_peak = NULL, neg_candidate_thres = asinh(10/5 + 1), lower_peak_thres = 0.001,
+get_peak_midpoint = function(cell_x_adt, cell_x_feature, log_file,
+                             adt_marker_select = NULL, adt_marker_index = NULL,
+                             bwFac_smallest = 1.1, bimodal_marker_index = NULL,
+                             trimodal_marker_index = NULL,
+                             positive_peak = NULL,
+                             neg_candidate_thres = asinh(10/5 + 1),
+                             lower_peak_thres = 0.001,
                              cd3_index = NULL, cd4_index = NULL, cd8_index = NULL) {
 
     if (length(adt_marker_select) > 1){
@@ -53,7 +57,12 @@ get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marke
     peak_mode = list()
     peak_region = list()
 
+    cn <- c("sample", "bandwidth", "peak_n", "peak_midpoint",
+            "peak_mode", "peak_left", "peak_right", "noise")
+    cat(toString(cn), "\n", file = log_file) # log file is rewritten
+
     for(sample_name in sample_name_list){
+
         ## extract the ADT counts for this sample
         cell_ind_tmp = which(cell_x_feature$sample == sample_name)
         cell_notNA = which(!is.na(cell_x_adt[cell_ind_tmp, adt_marker_select]))
@@ -107,6 +116,11 @@ get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marke
                         from = from,
                         to = to
                     )
+
+                    #############################
+                    .log_peak_midpoints(log_file, sample_name, fres, peak_info)
+                    #############################
+
                     if(length(peak_info$midpoint) != 3){ ## if not obtain 3 peaks, better to use a larger bw
                         fres = flowCore::filter(fcs, flowStats::curv1Filter(adt_marker_select, bwFac = bwFac_smallest + 0.5))
                         peak_info = flowStats::curvPeaks(
@@ -116,6 +130,9 @@ get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marke
                         from = from,
                         to = to
                         )
+                        #############################
+                        .log_peak_midpoints(log_file, sample_name, fres, peak_info)
+                        #############################
                     }
                     peak_ind = peak_info$peaks[, "y"] > lower_peak_thres
                     res = peak_info$midpoint[peak_ind]
@@ -129,6 +146,10 @@ get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marke
                         from = from,
                         to = to
                     )
+                    #############################
+                    .log_peak_midpoints(log_file, sample_name, fres, peak_info)
+                    #############################
+
                     if(length(peak_info$midpoint) != 3){ ## if not obtain 3 peaks, better to use a larger bw
                         fres = flowCore::filter(fcs, flowStats::curv1Filter(adt_marker_select, bwFac = bwFac_smallest + 0.5))
                         peak_info = flowStats::curvPeaks(
@@ -138,6 +159,9 @@ get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marke
                         from = from,
                         to = to
                         )
+                        #############################
+                        .log_peak_midpoints(log_file, sample_name, fres, peak_info)
+                        #############################
                     }
                     res = peak_info$midpoint
                     res_region = peak_info$regions
@@ -149,6 +173,10 @@ get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marke
                         from = from,
                         to = to
                     )
+                    #############################
+                    .log_peak_midpoints(log_file, sample_name, fres, peak_info)
+                    #############################
+
                     ## if no peak is detected
                     if(is.na(peak_info$midpoints[1])){
                         ## try using the smallest bw
@@ -160,6 +188,10 @@ get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marke
                             from = from,
                             to = to
                         )
+                        #############################
+                        .log_peak_midpoints(log_file, sample_name, fres0, peak_info)
+                        #############################
+
                         ## if still no peak detected
                         if(is.na(peak_info$midpoints[1])){
                             adt_expression = adt_expression + stats::rnorm(length(adt_expression), mean = 0, sd = 0.05)
@@ -178,6 +210,12 @@ get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marke
                                 from = from,
                                 to = to
                             )
+
+                            #############################
+                            .log_peak_midpoints(log_file, sample_name, fres, peak_info, noise = TRUE)
+                            #############################
+
+
                         }
                     }
 
@@ -202,6 +240,11 @@ get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marke
                                 from = from,
                                 to = to
                             )
+                            #############################
+                            .log_peak_midpoints(log_file, sample_name, fres1, peak_info)
+                            #############################
+
+
                             if (length(peak_info$midpoint) == 2) {
                                 ## peak number ==2 output results.
                                 y_sum = peak_info$peaks[, 'y'] %>% sum
@@ -217,6 +260,11 @@ get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marke
                                     from = from,
                                     to = to
                                 )
+                                #############################
+                                .log_peak_midpoints(log_file, sample_name, fres0, peak_info)
+                                #############################
+
+
                                 if((length(peak_info$midpoint) >= 2) && (sum(peak_info$peaks[, 'y']) > y_sum) && (peak_info$midpoint[2] - peak_info$midpoint[1] > 0.3)){
                                     ## if using the smallest bw obtain better peak mode, switch from fres1 to fres0 results
                                     res = peak_info$midpoint[peak_info$peaks[, "y"] > lower_peak_thres]
@@ -238,6 +286,10 @@ get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marke
                                     from = from,
                                     to = to
                                 )
+                                #############################
+                                .log_peak_midpoints(log_file, sample_name, fres0, peak_info)
+                                #############################
+
                                 if(any(is.na(peak_info$midpoint)) || (length(peak_info$midpoint) >= 2 && peak_info$midpoint[2] - peak_info$midpoint[1] < 0.5)){
 
                                     ## smallest bw may lead to NA midpoint or peaks that are too close due to discrete value
@@ -248,6 +300,10 @@ get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marke
                                         from = from,
                                         to = to
                                     )
+                                    #############################
+                                    .log_peak_midpoints(log_file, sample_name, fres1, peak_info)
+                                    #############################
+
                                     res = peak_info$midpoint
                                     res_region = peak_info$regions
                                 }else if (length(peak_info$midpoint) >= 2) {
@@ -270,6 +326,12 @@ get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marke
                                 from = from,
                                 to = to
                             )
+
+                            #############################
+                            .log_peak_midpoints(log_file, sample_name, fres0, peak_info)
+                            #############################
+
+
                             if(any(is.na(peak_info$midpoint)) || (length(peak_info$midpoint) >= 2 && peak_info$midpoint[2] - peak_info$midpoint[1] < 0.5)){
                                     peak_info = flowStats::curvPeaks(
                                         x = fres1,
@@ -278,6 +340,10 @@ get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marke
                                         from = from,
                                         to = to
                                     )
+                                    #############################
+                                    .log_peak_midpoints(log_file, sample_name, fres1, peak_info)
+                                    #############################
+
                                     res = peak_info$midpoint
                                     res_region = peak_info$regions
                             }else if (length(peak_info$midpoint) <= 2) {
@@ -310,6 +376,10 @@ get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marke
                         from = from,
                         to = to
                     )
+                    #############################
+                    .log_peak_midpoints(log_file, sample_name, fres2, peak_infoTmp)
+                    #############################
+
                     # peak_infoTmp$midpoints = peak_infoTmp$peaks[, "x"]
 
                     if ((adt_marker_select %in% bimodal_marker_index) && (length(peak_infoTmp$midpoints) == 2)) {
@@ -429,3 +499,19 @@ get_peak_midpoint = function(cell_x_adt = NULL, cell_x_feature = NULL, adt_marke
     return(landmark)
 }
 
+# to do: make logging optional
+.log_peak_midpoints <- function(log_f, sample_name, fres, peak_info,
+                                noise=FALSE){
+    bw_fac <- fres@filterDetails$defaultCurv1Filter$filter@bwFac
+    peak_midpoints <- peak_info$midpoints
+    peak_modes <- peak_info$peaks[, "x"]
+    df <- data.frame(Sample_name = sample_name,
+                     bw = bw_fac,
+                     n = seq_along(peak_midpoints),
+                     midpoint = peak_midpoints,
+                     mode = peak_modes,
+                     peak_left = peak_info$regions[, "left"],
+                     peak_right = peak_info$regions[, "right"],
+                     noise = noise)
+    readr::write_delim(df, file = log_f, append = TRUE, delim = ", ")
+}

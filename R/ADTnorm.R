@@ -44,7 +44,25 @@
 #' }
 #' @export
 #' @import dplyr ggplot2
-ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL, save_outpath = NULL, study_name = "ADTnorm", marker_to_process = NULL, bimodal_marker = NULL, trimodal_marker = NULL, positive_peak = NULL, bw_smallest_cd3 = 0.8, bw_smallest_cd4 = 0.8, bw_smallest_cd8 = 0.8, bw_smallest_bi = 1.1, bw_smallest_tri = 0.8, cd3_index = NULL, cd4_index = NULL, cd8_index = NULL, peak_type = "midpoint", multi_sample_per_batch = FALSE, shoulder_valley = FALSE, shoulder_valley_slope = -0.5, valley_density_adjust = 3, landmark_align_type = "negPeak_valley_posPeak", midpoint_type = "valley", neg_candidate_thres = asinh(8/5 + 1), lower_peak_thres = 0.001, brewer_palettes = "Set1", save_intermediate_rds = FALSE, save_intermediate_fig = TRUE, detect_outlier_valley = FALSE, target_landmark_location = NULL, clean_adt_name = FALSE){
+ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL,
+                   save_outpath = NULL, study_name = "ADTnorm",
+                   marker_to_process = NULL, bimodal_marker = NULL,
+                   trimodal_marker = NULL, positive_peak = NULL,
+                   bw_smallest_cd3 = 0.8, bw_smallest_cd4 = 0.8,
+                   bw_smallest_cd8 = 0.8, bw_smallest_bi = 1.1,
+                   bw_smallest_tri = 0.8, cd3_index = NULL,
+                   cd4_index = NULL, cd8_index = NULL,
+                   peak_type = "midpoint", multi_sample_per_batch = FALSE,
+                   shoulder_valley = FALSE, shoulder_valley_slope = -0.5,
+                   valley_density_adjust = 3,
+                   landmark_align_type = "negPeak_valley_posPeak",
+                   midpoint_type = "valley",
+                   neg_candidate_thres = asinh(8/5 + 1),
+                   lower_peak_thres = 0.001, brewer_palettes = "Set1",
+                   save_intermediate_rds = FALSE, save_intermediate_fig = TRUE,
+                   detect_outlier_valley = FALSE,
+                   target_landmark_location = NULL, clean_adt_name = FALSE,
+                   logdir = NULL){
 
     ## input parameter checking
     if(is.null(cell_x_adt)){
@@ -165,6 +183,15 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL, save_outpath = NULL
         adt_marker_select = colnames(cell_x_adt)[adt_marker_index]
         adt_marker_select_name = all_marker_name[adt_marker_index]
         print(adt_marker_select_name)
+
+        ######################
+        if (! is.null(logdir)){
+            log_file <- file.path(logdir, adt_marker_select_name)
+        } else {
+          log_file <- NULL
+        }
+        #####################
+
         ## smallest bw for density curve
         ## get the peak mode location
         if (!is.null(cd3_index) && adt_marker_index == cd3_index) {
@@ -172,7 +199,8 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL, save_outpath = NULL
             if(peak_type == "mode"){
                 peak_mode_res = get_peak_mode(cell_x_adt, cell_x_feature, adt_marker_select, adt_marker_index, bwFac_smallest, bimodal_marker_index, trimodal_marker_index, positive_peak, cd3_index = cd3_index, neg_candidate_thres = neg_candidate_thres, lower_peak_thres = lower_peak_thres)
             } else if(peak_type == "midpoint"){
-                peak_mode_res = get_peak_midpoint(cell_x_adt, cell_x_feature, adt_marker_select, adt_marker_index, bwFac_smallest, bimodal_marker_index, trimodal_marker_index, positive_peak, cd3_index = cd3_index, neg_candidate_thres = neg_candidate_thres, lower_peak_thres = lower_peak_thres)
+                peak_mode_res = get_peak_midpoint(cell_x_adt, cell_x_feature,
+                                                  log_file, adt_marker_select, adt_marker_index, bwFac_smallest, bimodal_marker_index, trimodal_marker_index, positive_peak, cd3_index = cd3_index, neg_candidate_thres = neg_candidate_thres, lower_peak_thres = lower_peak_thres)
 
             }
 
@@ -181,7 +209,8 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL, save_outpath = NULL
             if(peak_type == "mode"){
                 peak_mode_res = get_peak_mode(cell_x_adt, cell_x_feature, adt_marker_select, adt_marker_index, bwFac_smallest, bimodal_marker_index, trimodal_marker_index, positive_peak, cd4_index = cd4_index, neg_candidate_thres = neg_candidate_thres, lower_peak_thres = lower_peak_thres)
             }else if(peak_type == "midpoint"){
-                peak_mode_res = get_peak_midpoint(cell_x_adt, cell_x_feature, adt_marker_select, adt_marker_index, bwFac_smallest, bimodal_marker_index, trimodal_marker_index, positive_peak, cd4_index = cd4_index, neg_candidate_thres = neg_candidate_thres, lower_peak_thres = lower_peak_thres)
+                peak_mode_res = get_peak_midpoint(cell_x_adt, cell_x_feature,
+                                                  log_file, adt_marker_select, adt_marker_index, bwFac_smallest, bimodal_marker_index, trimodal_marker_index, positive_peak, cd4_index = cd4_index, neg_candidate_thres = neg_candidate_thres, lower_peak_thres = lower_peak_thres)
             }
 
         } else if(!is.null(cd8_index) && adt_marker_index == cd8_index){
@@ -189,7 +218,8 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL, save_outpath = NULL
             if(peak_type == "mode"){
                 peak_mode_res = get_peak_mode(cell_x_adt, cell_x_feature, adt_marker_select, adt_marker_index, bwFac_smallest, bimodal_marker_index, trimodal_marker_index, positive_peak, cd8_index = cd8_index, neg_candidate_thres = neg_candidate_thres, lower_peak_thres = lower_peak_thres)
             } else if(peak_type == "midpoint"){
-                peak_mode_res = get_peak_midpoint(cell_x_adt, cell_x_feature, adt_marker_select, adt_marker_index, bwFac_smallest, bimodal_marker_index, trimodal_marker_index, positive_peak, cd8_index = cd8_index, neg_candidate_thres = neg_candidate_thres, lower_peak_thres = lower_peak_thres)
+                peak_mode_res = get_peak_midpoint(cell_x_adt, cell_x_feature,
+                                                  log_file, adt_marker_select, adt_marker_index, bwFac_smallest, bimodal_marker_index, trimodal_marker_index, positive_peak, cd8_index = cd8_index, neg_candidate_thres = neg_candidate_thres, lower_peak_thres = lower_peak_thres)
             }
 
         } else if(adt_marker_index %in% trimodal_marker_index){
@@ -197,7 +227,9 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL, save_outpath = NULL
             if(peak_type == "mode"){
                 peak_mode_res = get_peak_mode(cell_x_adt, cell_x_feature, adt_marker_select, adt_marker_index, bwFac_smallest, bimodal_marker_index, trimodal_marker_index, positive_peak, cd4_index = cd4_index, neg_candidate_thres = neg_candidate_thres, lower_peak_thres = lower_peak_thres)
             } else if(peak_type == "midpoint"){
-                peak_mode_res = get_peak_midpoint(cell_x_adt, cell_x_feature, adt_marker_select, adt_marker_index, bwFac_smallest, bimodal_marker_index, trimodal_marker_index, positive_peak, cd4_index = cd4_index, neg_candidate_thres = neg_candidate_thres, lower_peak_thres = lower_peak_thres)
+                peak_mode_res = get_peak_midpoint(cell_x_adt, cell_x_feature,
+                                                  log_file, adt_marker_select,
+                                                  adt_marker_index, bwFac_smallest, bimodal_marker_index, trimodal_marker_index, positive_peak, cd4_index = cd4_index, neg_candidate_thres = neg_candidate_thres, lower_peak_thres = lower_peak_thres)
             }
 
 
@@ -206,7 +238,8 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL, save_outpath = NULL
             if(peak_type == "mode"){
                 peak_mode_res = get_peak_mode(cell_x_adt, cell_x_feature, adt_marker_select, adt_marker_index, bwFac_smallest, bimodal_marker_index, trimodal_marker_index, positive_peak, neg_candidate_thres = neg_candidate_thres, lower_peak_thres = lower_peak_thres)
             } else if(peak_type == "midpoint"){
-                peak_mode_res = get_peak_midpoint(cell_x_adt, cell_x_feature, adt_marker_select, adt_marker_index, bwFac_smallest, bimodal_marker_index, trimodal_marker_index, positive_peak, neg_candidate_thres = neg_candidate_thres, lower_peak_thres = lower_peak_thres)
+                peak_mode_res = get_peak_midpoint(cell_x_adt, cell_x_feature,
+                                                  log_file, adt_marker_select, adt_marker_index, bwFac_smallest, bimodal_marker_index, trimodal_marker_index, positive_peak, neg_candidate_thres = neg_candidate_thres, lower_peak_thres = lower_peak_thres)
             }
 
         }
