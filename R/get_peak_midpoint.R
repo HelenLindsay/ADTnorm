@@ -27,13 +27,12 @@
 # require(flowStats)
 # require(dplyr)
 get_peak_midpoint = function(cell_x_adt, cell_x_feature, log_file,
-                             adt_marker_select = NULL, adt_marker_index = NULL,
-                             bwFac_smallest = 1.1, bimodal_marker_index = NULL,
-                             trimodal_marker_index = NULL,
-                             positive_peak = NULL,
-                             neg_candidate_thres = asinh(10/5 + 1),
-                             lower_peak_thres = 0.001,
-                             cd3_index = NULL, cd4_index = NULL, cd8_index = NULL) {
+                             adt_marker_select=NULL, adt_marker_index=NULL,
+                             bwFac_smallest=1.1, bimodal_marker_index=NULL,
+                             trimodal_marker_index=NULL, positive_peak=NULL,
+                             neg_candidate_thres=asinh(10/5 + 1),
+                             lower_peak_thres=0.001,
+                             cd3_index=NULL, cd4_index=NULL, cd8_index=NULL) {
 
     if (length(adt_marker_select) > 1){
         stop("adt_marker_select should be a single marker name")
@@ -42,40 +41,40 @@ get_peak_midpoint = function(cell_x_adt, cell_x_feature, log_file,
     ## set parameters
     bwFac = 1.2
     border = 0.01
-    peakNr = NULL
-    densities = NULL
-    n = 201
-    indices = FALSE
 
     ## get peak mode for each sample of this processing ADT marker
     sample_name_list = levels(cell_x_feature$sample) ## user provided or auto-detected
     ## get ADT value range with a slightly extension
-    from = min(cell_x_adt[, adt_marker_select], na.rm = TRUE) - diff(range(cell_x_adt[, adt_marker_select], na.rm = TRUE)) * 0.15
-    to = max(cell_x_adt[, adt_marker_select], na.rm = TRUE) + diff(range(cell_x_adt[, adt_marker_select], na.rm = TRUE)) * 0.15
+
+    cell_x_adt <- as.matrix(cell_x_adt)
+    c_x_adt <- cell_x_adt[, adt_marker_select]
+    c_x_adt_range <- range(c_x_adt, na.rm = TRUE)
+    from = min(c_x_adt, na.rm = TRUE) - diff(c_x_adt_range) * 0.15
+    to = max(c_x_adt, na.rm = TRUE) + diff(c_x_adt_range) * 0.15
 
     peak_num = 0
     peak_mode = list()
     peak_region = list()
 
-    cn <- c("sample", "bandwidth", "peak_n", "peak_midpoint",
-            "peak_mode", "peak_left", "peak_right", "noise")
-    cat(toString(cn), "\n", file = log_file) # log file is rewritten
+    if (! is.null(log_file)){
+        cn <- c("sample", "bandwidth", "peak_n", "peak_midpoint",
+                "peak_mode", "peak_left", "peak_right", "noise")
+        cat(toString(cn), "\n", file = log_file) # log file is rewritten
+    }
 
     for(sample_name in sample_name_list){
-
         ## extract the ADT counts for this sample
         cell_ind_tmp = which(cell_x_feature$sample == sample_name)
         cell_notNA = which(!is.na(cell_x_adt[cell_ind_tmp, adt_marker_select]))
         cell_ind = cell_ind_tmp[cell_notNA]
-        if(length(cell_ind) > 0){
-            # fcs_count = cell_x_adt[cell_ind, ] %>% as.matrix()
-            # fcs = flowCore::flowFrame(fcs_count)
-            fcs_count = cell_x_adt[cell_ind, adt_marker_select] %>% t %>% t %>% as.matrix()
+
+        if (length(cell_ind) > 0){
+            fcs_count = cell_x_adt[cell_ind, adt_marker_select, drop=FALSE]
             colnames(fcs_count) = adt_marker_select
             fcs = flowCore::flowFrame(fcs_count)
-
             unique_value = length(unique(cell_x_adt[cell_ind, adt_marker_select]))
-            if(unique_value == 1){
+
+            if (unique_value == 1){
                     ## only one value for this marker
                     peak_mode[[sample_name]] = NA
                     peak_region[[sample_name]] = matrix(NA, ncol = 2, nrow = 1)
@@ -108,6 +107,7 @@ get_peak_midpoint = function(cell_x_adt, cell_x_feature, log_file,
 
                 ## processing CD4
                 if (!is.null(cd4_index) && adt_marker_index == cd4_index) {
+                    print("it's CD4")
                     fres = flowCore::filter(fcs, flowStats::curv1Filter(adt_marker_select, bwFac = bwFac_smallest))
                     peak_info = flowStats::curvPeaks(
                         x = fres,
@@ -138,6 +138,7 @@ get_peak_midpoint = function(cell_x_adt, cell_x_feature, log_file,
                     res = peak_info$midpoint[peak_ind]
                     res_region = peak_info$regions[peak_ind, ]
                 } else if(adt_marker_index %in% trimodal_marker_index){ ## trimodal marker
+                    print("marker is trimodal")
                     fres = flowCore::filter(fcs, flowStats::curv1Filter(adt_marker_select, bwFac = bwFac_smallest))
                     peak_info = flowStats::curvPeaks(
                         x = fres,
@@ -150,15 +151,13 @@ get_peak_midpoint = function(cell_x_adt, cell_x_feature, log_file,
                     .log_peak_midpoints(log_file, sample_name, fres, peak_info)
                     #############################
 
-                    if(length(peak_info$midpoint) != 3){ ## if not obtain 3 peaks, better to use a larger bw
+                    if (length(peak_info$midpoint) != 3){ ## if not obtain 3 peaks, better to use a larger bw
                         fres = flowCore::filter(fcs, flowStats::curv1Filter(adt_marker_select, bwFac = bwFac_smallest + 0.5))
                         peak_info = flowStats::curvPeaks(
-                        x = fres,
-                        dat = adt_expression,
+                        x = fres, dat = adt_expression,
                         borderQuant = border,
-                        from = from,
-                        to = to
-                        )
+                        from = from, to = to)
+
                         #############################
                         .log_peak_midpoints(log_file, sample_name, fres, peak_info)
                         #############################
@@ -435,74 +434,14 @@ get_peak_midpoint = function(cell_x_adt, cell_x_feature, log_file,
 
     } ## end of for loop for sample_name in sample_name_list
 
-    landmark <- .adjust_peak_indices(peak_locs, positive_peak)
+    landmark <- .adjust_peak_indices(peak_mode, positive_peak)
 
     ## if all the peaks are within 1 it is highly likely that there
     ## is only one negative peak
     if (max(landmark[!is.na(landmark)]) < neg_candidate_thres) {
-      landmark <- .all_negative_peaks(landmark)
+        print("running .all_negative_peaks")
+        landmark <- .all_negative_peaks(landmark)
     }
-
-    # ## initiate landmark to record peak mode location
-    # landmark = matrix(NA, ncol = peak_num, nrow = length(sample_name_list))
-    # landmarkRegion = list()
-    # for (i in seq_len(peak_num)) {
-    #     landmarkRegion[[i]] = matrix(NA, ncol = 2, nrow = length(sample_name_list))
-    #     rownames(landmarkRegion[[i]]) = sample_name_list
-    # }
-    # rownames(landmark) = sample_name_list
-    # for (i in names(peak_mode)) { ## go through samples
-    #     if (!is.na(peak_mode[[i]][1])) { ## if the peak modes are detected
-    #         peak_modeNum = length(peak_mode[[i]])
-    #
-    #         if (peak_modeNum == 1) {
-    #
-    #             ## check if the only peak should be positive peak
-    #             pos_marker_index = which(paste0("tmpName", positive_peak$ADT_index) == adt_marker_select)
-    #             pos_sample_index = which(positive_peak$sample == names(peak_mode)[i])
-    #
-    #             if (length(intersect(pos_marker_index, pos_sample_index)) > 0) {
-    #                 landmark[i, min(2, peak_num)] = peak_mode[[i]]
-    #                 landmarkRegion[[min(2, peak_num)]][i, ] = peak_region[[i]]
-    #             } else {
-    #                 landmark[i, 1] = peak_mode[[i]]
-    #                 landmarkRegion[[1]][i, ] = peak_region[[i]]
-    #             }
-    #         } else if (peak_modeNum == 2) {
-    #             landmark[i, c(1, max(2, peak_num))] = peak_mode[[i]]
-    #
-    #             landmarkRegion[[1]][i, ] = peak_region[[i]][1, ]
-    #             landmarkRegion[[max(2, peak_num)]][i, ] = peak_region[[i]][2, ]
-    #         } else if (peak_modeNum == 3) {
-    #             landmark[i, c(1, 2, max(3, peak_num))] = peak_mode[[i]]
-    #             landmarkRegion[[1]][i, ] = peak_region[[i]][1, ]
-    #             landmarkRegion[[2]][i, ] = peak_region[[i]][2, ]
-    #             landmarkRegion[[max(3, peak_num)]][i, ] = peak_region[[i]][3, ]
-    #         } else {
-    #             landmark[i, 1:peak_modeNum] = peak_mode[[i]]
-    #             for (k in 1:peak_modeNum) {
-    #                 landmarkRegion[[k]][i, ] = peak_region[[i]][k, ]
-    #             }
-    #         }
-    #     }
-    # }
-    #
-    # ## if all the peaks are within 1 - highly likely that there is only one negative peak
-    # if (max(landmark[!is.na(landmark)]) < neg_candidate_thres) {
-    #     landmark_new = matrix(NA, ncol = 1, nrow = nrow(landmark))
-    #     landmarkAllMedian = stats::median(landmark[!is.na(landmark)])
-    #     for (i in 1:nrow(landmark)) {
-    #         landmark_nonNA = landmark[i, !is.na(landmark[i, ])]
-    #         if (length(landmark_nonNA) > 0) {
-    #             landmark_new[i, ] = landmark[i, which.min(abs(landmark_nonNA - landmarkAllMedian))]
-    #         } else {
-    #             landmark_new[i, ] = NA
-    #         }
-    #     }
-    #     landmark = landmark_new
-    # }
-    #rownames(landmark) = sample_name_list
-
 
     return(landmark)
 }
@@ -510,6 +449,7 @@ get_peak_midpoint = function(cell_x_adt, cell_x_feature, log_file,
 # to do: make logging optional
 .log_peak_midpoints <- function(log_f, sample_name, fres, peak_info,
                                 noise=FALSE){
+    if (is.null(log_f)) { return() }
     bw_fac <- fres@filterDetails$defaultCurv1Filter$filter@bwFac
     peak_midpoints <- peak_info$midpoints
     peak_modes <- peak_info$peaks[, "x"]

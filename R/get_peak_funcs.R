@@ -47,8 +47,8 @@
         temp <- .adjust_by_proximity(peaks, total_peaks, max_peaks)
         if (! identical(temp, peak_align)){
             message("peak alignment changed by proximity")
-            print(peak_align)
-            print(temp)
+            print(peak_align[peak_align != temp])
+            print(temp[peak_align != temp])
         }
         peak_align <- temp
     }
@@ -66,6 +66,8 @@
 .adjust_by_proximity <- function(peaks, total_peaks, max_peaks){
     adjust <- total_peaks != max_peaks
     av_locs <- rowMeans(matrix(peaks[!adjust], nrow = max_peaks))
+    print("adjust_by_proximity, av_locs")
+    print(av_locs)
     peak_to_av <- abs(outer(peaks, av_locs, FUN = "-"))
     new_idxs <- apply(peak_to_av, 1, which.min)
     # CHECK IF THERE ARE DUPLICATES

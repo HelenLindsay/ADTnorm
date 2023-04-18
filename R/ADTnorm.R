@@ -62,7 +62,7 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL,
                    save_intermediate_rds = FALSE, save_intermediate_fig = TRUE,
                    detect_outlier_valley = FALSE,
                    target_landmark_location = NULL, clean_adt_name = FALSE,
-                   logdir = NULL){
+                   log_dir = NULL){
 
     ## input parameter checking
     if(is.null(cell_x_adt)){
@@ -178,6 +178,8 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL,
     print("trimodal index")
     print(trimodal_marker_index)
 
+    if (! is.null(log_dir)) dir.create(log_dir, recursive=TRUE)
+
     ## ADTnorm each marker
     for(adt_marker_index in adt_marker_index_list){ ## process each ADT marker respectively -- pending parallel running setup
         adt_marker_select = colnames(cell_x_adt)[adt_marker_index]
@@ -185,8 +187,8 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL,
         print(adt_marker_select_name)
 
         ######################
-        if (! is.null(logdir)){
-            log_file <- file.path(logdir, adt_marker_select_name)
+        if (! is.null(log_dir)){
+            log_file <- file.path(log_dir, adt_marker_select_name)
         } else {
           log_file <- NULL
         }
@@ -195,6 +197,7 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL,
         ## smallest bw for density curve
         ## get the peak mode location
         if (!is.null(cd3_index) && adt_marker_index == cd3_index) {
+            print("it's CD3")
             bwFac_smallest = bw_smallest_cd3 ##0.8
             if(peak_type == "mode"){
                 peak_mode_res = get_peak_mode(cell_x_adt, cell_x_feature, adt_marker_select, adt_marker_index, bwFac_smallest, bimodal_marker_index, trimodal_marker_index, positive_peak, cd3_index = cd3_index, neg_candidate_thres = neg_candidate_thres, lower_peak_thres = lower_peak_thres)
@@ -243,7 +246,10 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL,
             }
 
         }
-        print(peak_mode_res)
+        print("peak_mode_res")
+        print(head(peak_mode_res, 10))
+        print("flag")
+        stop()
 
         ## get the valley location
         peak_valley_list <- get_valley_location(cell_x_adt, cell_x_feature, adt_marker_select, peak_mode_res, shoulder_valley, positive_peak, multi_sample_per_batch, adjust = valley_density_adjust, min_fc = 20, shoulder_valley_slope = shoulder_valley_slope, neg_candidate_thres = neg_candidate_thres)
@@ -271,16 +277,29 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL,
                 dir.create(paste0(save_outpath, "/RDS"), recursive = TRUE)
             }
 
-            saveRDS(peak_valley, file = paste0(save_outpath, "/RDS/peak_valley_raw_", adt_marker_select_name, "_", study_name, ".rds"), compress = FALSE)
-            saveRDS(density_plot, file = paste0(save_outpath, "/RDS/density_raw_", adt_marker_select_name, "_", study_name, ".rds"), compress = FALSE)
+            out_template <-
+
+            saveRDS(peak_valley,
+                    file = sprintf("%s/RDS/peak_valley_raw_%s_%s.rds",
+                                   save_outpath, adt_marker_select_name,
+                                   study_name),
+                    compress = FALSE)
+            saveRDS(density_plot,
+                    file = sprintf("%s/RDS/density_raw_%s_%s.rds", save_outpath,
+                                   adt_marker_select_name, study_name),
+                    compress = FALSE)
 
         }
         if(save_intermediate_fig){
-            if(!dir.exists(paste0(save_outpath, "/figures"))){
-                dir.create(paste0(save_outpath, "/figures"), recursive = TRUE)
+            if(! dir.exists(paste0(save_outpath, "/figures"))){
+                 dir.create(paste0(save_outpath, "/figures"), recursive = TRUE)
             }
 
-            grDevices::pdf(paste0(save_outpath, "/figures/ArcsinhTransform_", adt_marker_select_name, "_", study_name, ".pdf"), width = 11, height = ceiling(length(levels(cell_x_feature$sample)) * 0.4))
+            asinh_out <- sprintf("%s/figures/ArcsinhTransform_%s_%s.pdf",
+                                 save_outpath, adt_marker_select_name, study_name)
+            fig_height <- ceiling(length(levels(cell_x_feature$sample)) * 0.4)
+            print(fig_height)
+            grDevices::pdf(asinh_out, width = 11, height = fig_height)
             print(density_plot)
             grDevices::dev.off()
         }
@@ -315,7 +334,9 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL,
         }else{
             target_landmark = NULL
         }
-        peak_alignment_res = peak_alignment(cell_x_adt[, adt_marker_select], cell_x_feature, landmark_matrix, target_landmark = target_landmark)
+        peak_alignment_res = peak_alignment(cell_x_adt[, adt_marker_select],
+                                            cell_x_feature, landmark_matrix,
+                                            target_landmark = target_landmark)
         cell_x_adt_norm[, adt_marker_select] = peak_alignment_res[[1]]
 
         if(ncol(peak_alignment_res[[2]]) == 2){
@@ -333,10 +354,15 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL,
             method_label = "ADTnorm"
         ))
         if(save_intermediate_rds){
-            saveRDS(density_norm_plot, file = paste0(save_outpath, "/RDS/density_ADTnorm_", adt_marker_select_name, "_", study_name, ".rds"), compress = FALSE)
+            saveRDS(density_norm_plot, file = paste0(save_outpath,
+                                                     "/RDS/density_ADTnorm_",
+                                                     adt_marker_select_name, "_",
+                                                     study_name, ".rds"),
+                    compress = FALSE)
         }
         if(save_intermediate_fig){
-            grDevices::pdf(paste0(save_outpath, "/figures/ADTnorm_", adt_marker_select_name, "_", study_name, ".pdf"), width = 11, height = ceiling(length(levels(cell_x_feature$sample)) * 0.4))
+            grDevices::pdf(paste0(save_outpath, "/figures/ADTnorm_",
+                                  adt_marker_select_name, "_", study_name, ".pdf"), width = 11, height = ceiling(length(levels(cell_x_feature$sample)) * 0.4))
             print(density_norm_plot)
             grDevices::dev.off()
         }

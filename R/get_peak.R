@@ -3,7 +3,7 @@
 
 #' Get the peak landmark locations
 #'
-#' This function detect the peak landmark locations for each sample per ADT
+#' This function detects the peak landmark locations for each sample per ADT
 #' marker using either the peak mode or midpoint. Using the peak midpoint can
 #' be more stable across samples and less affected by the bandwidth.
 #' Using the peak mode can be more accurate in determining the peak location if

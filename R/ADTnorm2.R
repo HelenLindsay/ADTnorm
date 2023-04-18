@@ -10,7 +10,7 @@ ADTnorm2 <- function(cell_x_adt, cell_x_feature, save_outpath=NULL,
                     lower_peak_thres=0.001, brewer_palettes="Set1",
                     save_intermediate_rds=FALSE, save_intermediate_fig=TRUE,
                     detect_outlier_valley=FALSE, target_landmark_location=NULL,
-                    clean_adt_name=FALSE, verbose=FALSE)
+                    clean_adt_name=FALSE, verbose=FALSE, log_dir=NULL)
 {
 
     if (isTRUE(clean_adt_name)) { # standardise names ----
@@ -23,18 +23,16 @@ ADTnorm2 <- function(cell_x_adt, cell_x_feature, save_outpath=NULL,
     cell_x_feature <- .format_cell_x_feature(cell_x_feature)
 
     # Check validity of inputs ----
-    print(match.call())
-
-    .check_args <- names(formals(.checkInputsADTnorm))
-    .input_args <- as.list(match.call())
-    do.call(.checkInputsADTnorm, .input_args[.check_args])
+    .checkInputsADTnorm(cell_x_adt, cell_x_feature, trimodal_marker,
+                        save_intermediate_rds, save_intermediate_fig,
+                        save_outpath, peak_type, landmark_align_type,
+                        marker_to_process, multi_sample_per_batch,
+                        positive_peak)
 
     # Set target locations ----
     if (! is.null(target_landmark_location)){
         target_landmark_location <- .setTargetLocation(target_landmark_location)
     }
-
-    stop()
 
     # make arcsinh_transform optional ----
     #if(input_raw_counts){
@@ -57,39 +55,51 @@ ADTnorm2 <- function(cell_x_adt, cell_x_feature, save_outpath=NULL,
     # Select peak function
     get_peak <- ifelse(peak_type == "mode", get_peak_mode, get_peak_midpoint)
 
-    all_bwFac_smallest <- .setBandwidth(all_marker_name, trimodal_marker,
-                                        bw_smallest_bi, bw_smallest_tri)
+    bw_res <- .setBandwidth(all_marker_name, trimodal_marker,
+                            bw_smallest_bi, bw_smallest_tri)
 
     cell_x_adt_norm <- .selectMarkers(cell_x_adt, marker_to_process)
-
 
     #######
     # TO DO: n_expected_peak
     # Do the subsetting in this function
     #######
 
+    if (! is.null(log_dir)) dir.create(log_dir, recursive=TRUE)
 
-  for (adt in all_marker_name) {
-      print(adt)
-      bwFac_smallest <- all_bwFac_smallest[[adt]]
+    for (adt in all_marker_name) {
+       print(adt)
 
-      peak_mode_res = get_peak(cell_x_adt, cell_x_feature, adt,
-                               bwFac_smallest, positive_peak,
-                               neg_candidate_thres = neg_candidate_thres,
-                               lower_peak_thres = lower_peak_thres)
+       ######################
+       if (! is.null(log_dir)){
+          log_file <- file.path(log_dir, adt)
+       } else {
+          log_file <- NULL
+       }
+       #####################
 
-     print(peak_mode_res)
+       bwFac_smallest <- bw_res$bwFac_smallest[[adt]]
 
-    # get valley ----
-    peak_valley_list <- get_valley_location(
-        cell_x_adt, cell_x_feature,
-        adt_marker_select, peak_mode_res, shoulder_valley,
-        positive_peak, multi_sample_per_batch, adjust = valley_density_adjust,
-        min_fc = 20, shoulder_valley_slope = shoulder_valley_slope,
-        neg_candidate_thres = neg_candidate_thres)
+       peak_mode_res = get_peak(cell_x_adt, cell_x_feature, log_file, adt,
+                                match(adt, colnames(cell_x_adt)),
+                                bwFac_smallest=bwFac_smallest,
+                                positive_peak=positive_peak,
+                                neg_candidate_thres=neg_candidate_thres,
+                                lower_peak_thres=lower_peak_thres)
 
-    valley_location_res <- peak_valley_list$valley_location_list
-    peak_mode_res <- peak_valley_list$peak_landmark_list
+       # get valley ----
+       peak_valley_list <- get_valley_location(
+           cell_x_adt, cell_x_feature, adt, peak_mode_res,
+           shoulder_valley, positive_peak, multi_sample_per_batch,
+           adjust=valley_density_adjust, min_fc=20,
+           shoulder_valley_slope=shoulder_valley_slope,
+           neg_candidate_thres=neg_candidate_thres)
+
+       valley_location_res <- peak_valley_list$valley_location_list
+       peak_mode_res <- peak_valley_list$peak_landmark_list
+
+    print("stopping")
+    stop()
 
     if (detect_outlier_valley) {
       valley_location_res <- detect_impute_outlier_valley(
@@ -311,22 +321,23 @@ ADTnorm2 <- function(cell_x_adt, cell_x_feature, save_outpath=NULL,
     bwFac_smallest <- structure(rep(bw_smallest_bi, n), names = marker_names)
     marker_type <- structure(rep("bimodal", n), names = marker_names)
 
-    bwFac_smallest[[trimodal_marker]] <- bw_smallest_tri
-    marker_type[[trimodal_marker]] <- "trimodal"
+    bwFac_smallest[marker_names %in% trimodal_marker] <- bw_smallest_tri
+    marker_type[marker_names %in% trimodal_marker] <- "trimodal"
 
-    bwFac_smallest[[marker_names %in% special_cases]] <- special_bw
-    marker_type[[match("CD4", marker_names)]] <- "CD4"
+    bwFac_smallest[marker_names %in% special_cases] <- special_bw
+    marker_type[match("CD4", marker_names)] <- "CD4"
 
-    return(bwFac_smallest, marker_type)
+    return(list(bwFac_smallest = bwFac_smallest, marker_type = marker_type))
 }
 
 
 # .selectMarkers ----
+# Subset cell_x_adt and report which markers will be used
 .selectMarkers <- function(cell_x_adt, marker_to_process){
     msg <- "ADTnorm will process "
     if (is.null(marker_to_process)) {
         message(sprintf("%s all the ADT markers from the ADT matrix: %s\n",
-                        msg, paste(all_marker_name, collapse = ", ")))
+                        msg, toString(colnames(cell_x_adt))))
         cell_x_adt_norm = cell_x_adt
     }
 
