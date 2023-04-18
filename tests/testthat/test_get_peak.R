@@ -43,5 +43,4 @@ test_that(".all_negative_peaks works as expected", {
     expect_equal(.all_negative_peaks(landmark), exp_landmarks)
 })
 
-# triana_2021_AML1 has lots of peaks!
-# very large peak triana_2021_BM1
+# test that peak alignment works if there is one extra positive peak

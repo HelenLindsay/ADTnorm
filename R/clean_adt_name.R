@@ -12,9 +12,7 @@
 clean_adt_name <- function(adt_name) {
     adt_rename <- adt_name %>%
         gsub("CD19-CAR", "CARCD19", .) %>%
-        gsub("_PROT", "", .) %>%
-        gsub("_TotalSeqB", "", .) %>%
-        gsub("_control", "", .) %>%
+        gsub("_PROT|_TotalSeqB|_control|ADT-", "", .) %>%
         gsub("-GA.*", "", .) %>%
         gsub("-GC.*", "", .) %>%
         gsub("-GT.*", "", .) %>%
@@ -31,8 +29,7 @@ clean_adt_name <- function(adt_name) {
         gsub("-TC.*", "", .) %>%
         gsub("-TG.*", "", .) %>%
         gsub("-TT.*", "", .) %>%
-        gsub("_.*", "", .) %>%
-        gsub("ADT-", "", .)
+        gsub("_.*", "", .)
 
     if (!("CD8" %in% adt_rename)) {
         if ("CD8a" %in% adt_rename | "CD8A" %in% adt_rename) {
@@ -47,13 +44,19 @@ clean_adt_name <- function(adt_name) {
     adt_rename <- replace(adt_rename, adt_rename == "MouseIgG2akappaisotype", "IgG2a")
     adt_rename <- replace(adt_rename, adt_rename == "Mouse IgG2bkIsotype", "IgG2b")
     adt_rename <- replace(adt_rename, adt_rename == "RatIgG2bkIsotype", "IgG2b-Rat")
-
     adt_rename <- replace(adt_rename, adt_rename == "Mouse-IgG1", "IgG1")
     adt_rename <- replace(adt_rename, adt_rename == "Mouse-IgG2a", "IgG2a")
     adt_rename <- replace(adt_rename, adt_rename == "Mouse-IgG2b", "IgG2b")
     adt_rename <- replace(adt_rename, adt_rename == "Rat-IgG2b", "IgG2b-Rat")
 
-    adt_rename <- adt_rename %>% gsub("HLA-DR", "HLADR", .) %>% gsub("HLA\\.DR", "HLADR", .) %>% gsub("PD-1", "PD1", .) %>% gsub(" ", "", .) %>% gsub("\\s*\\([^\\)]+\\)", "", .) %>% gsub("CD279", "PD1", .) %>% gsub("CD274", "PDL1", .) %>% gsub("\\.", "", .) %>% gsub("-", "", .) %>% gsub("/", "",.)
+    adt_rename <- adt_rename %>%
+      gsub("HLA[-\\.]DR", "HLADR", .) %>%
+      gsub("PD-1", "PD1", .) %>%
+      gsub(" ", "", .) %>%
+      gsub("\\s*\\([^\\)]+\\)", "", .) %>%
+      gsub("CD279", "PD1", .) %>%
+      gsub("CD274", "PDL1", .) %>%
+      gsub("\\.|-|/", "", .)
 
     return(adt_rename)
 }
