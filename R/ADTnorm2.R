@@ -10,7 +10,8 @@ ADTnorm2 <- function(cell_x_adt, cell_x_feature, save_outpath=NULL,
                     lower_peak_thres=0.001, brewer_palettes="Set1",
                     save_intermediate_rds=FALSE, save_intermediate_fig=TRUE,
                     detect_outlier_valley=FALSE, target_landmark_location=NULL,
-                    clean_adt_name=FALSE, verbose=FALSE, log_dir=NULL)
+                    clean_adt_name=FALSE, verbose=FALSE, log_dir=NULL,
+                    proximity=TRUE)
 {
 
     if (isTRUE(clean_adt_name)) { # standardise names ----
@@ -79,13 +80,15 @@ ADTnorm2 <- function(cell_x_adt, cell_x_feature, save_outpath=NULL,
        #####################
 
        bwFac_smallest <- bw_res$bwFac_smallest[[adt]]
+       marker_type <- bw_res$marker_type[[adt]]
 
-       peak_mode_res = get_peak(cell_x_adt, cell_x_feature, log_file, adt,
-                                match(adt, colnames(cell_x_adt)),
+       peak_mode_res = get_peak(cell_x_adt, cell_x_feature, log_file,
+                                adt, marker_type,
                                 bwFac_smallest=bwFac_smallest,
                                 positive_peak=positive_peak,
                                 neg_candidate_thres=neg_candidate_thres,
-                                lower_peak_thres=lower_peak_thres)
+                                lower_peak_thres=lower_peak_thres,
+                                proximity=proximity)
 
        # get valley ----
        peak_valley_list <- get_valley_location(
@@ -93,13 +96,13 @@ ADTnorm2 <- function(cell_x_adt, cell_x_feature, save_outpath=NULL,
            shoulder_valley, positive_peak, multi_sample_per_batch,
            adjust=valley_density_adjust, min_fc=20,
            shoulder_valley_slope=shoulder_valley_slope,
-           neg_candidate_thres=neg_candidate_thres)
+           neg_candidate_thres=neg_candidate_thres) # proximity=TRUE
 
        valley_location_res <- peak_valley_list$valley_location_list
        peak_mode_res <- peak_valley_list$peak_landmark_list
 
     print("stopping")
-    stop()
+    return(peak_mode_res)
 
     if (detect_outlier_valley) {
       valley_location_res <- detect_impute_outlier_valley(

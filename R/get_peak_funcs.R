@@ -22,7 +22,7 @@
 # .adjust_peak_indices ----
 # If running via ADTnorm function as intended, validity of pos_samples has
 # already been checked.
-.adjust_peak_indices <- function(peak_locs, pos_samples = NULL){
+.adjust_peak_indices <- function(peak_locs, pos_samples=NULL, proximity=FALSE){
     n_peaks <- lengths(peak_locs)
     n_peaks[is.na(peak_locs)] <- 0
     max_peaks <- max(n_peaks)
@@ -41,7 +41,7 @@
     if (! is.null(pos_samples)){
         is_pos <- names(peak_locs) %in% pos_samples
         peak_align[is_pos & total_peaks == 1] <- max_peaks
-    } else if (any(total_peaks != max_peaks)){
+    } else if (isTRUE(proximity) & any(total_peaks != max_peaks)){
         # Otherwise, set to closest average
         # TO DO: remove temp
         temp <- .adjust_by_proximity(peaks, total_peaks, max_peaks)
@@ -55,7 +55,6 @@
 
     row_offset <- rep(seq_along(n_peaks), n_peaks)
     landmark[cbind(row_offset, peak_align)] <- peaks
-    print(landmark)
 
     return(landmark)
 }
