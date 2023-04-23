@@ -380,23 +380,19 @@ ADTnorm2 <- function(cell_x_adt, cell_x_feature, save_outpath=NULL,
 
 # .setPeakAlignRes ----
 .setPeakAlignRes <- function(){
+    # Check that it cannot be 1
+
     # Peak alignment resolution ----
-    peak_alignment_res = peak_alignment(cell_x_adt[, adt_marker_select],
-                                        cell_x_feature, landmark_matrix,
-                                        target_landmark = target_landmark)
+    pk_align = peak_alignment(cell_x_adt[, adt_marker_select], cell_x_feature,
+                              landmark_matrix, target_landmark=target_landmark)
 
-    cell_x_adt_norm[, adt_marker_select] = peak_alignment_res[[1]]
+    cell_x_adt_norm[, adt_marker_select] = pk_align[[1]]
 
-    if (ncol(peak_alignment_res[[2]]) == 2) {
-        peak_mode_norm_res = peak_alignment_res[[2]][, 1, drop = FALSE]
-        valley_location_norm_res = peak_alignment_res[[2]][,2, drop = FALSE]
-    }
-    else if (ncol(peak_alignment_res[[2]]) == 3) {
-        peak_mode_norm_res = peak_alignment_res[[2]][, c(1,3)]
-        valley_location_norm_res = peak_alignment_res[[2]][,2, drop = FALSE]
-    }
-    else if (ncol(peak_alignment_res[[2]]) == 5) {
-        peak_mode_norm_res = peak_alignment_res[[2]][, c(1, 3, 5)]
-        valley_location_norm_res = peak_alignment_res[[2]][, c(2, 4)]
-    }
+    # Odd number columns are peaks, even numbers are valleys
+    col_idx <- seq_len(ncol(pk_align[[2]]))
+    peak_mode_norm_res = pk_align[[2]][, col_idx %% 2 == 1, drop = FALSE]
+    valley_location_norm_res = pk_align[[2]][, col_idx %% 2 == 0, drop = FALSE]
+
+    return(list(peak_mode_norm_res=peak_mode_norm_res,
+                valley_location_norm_res=valley_location_norm_res))
 }

@@ -279,8 +279,6 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL,
                 dir.create(paste0(save_outpath, "/RDS"), recursive = TRUE)
             }
 
-            out_template <-
-
             saveRDS(peak_valley,
                     file = sprintf("%s/RDS/peak_valley_raw_%s_%s.rds",
                                    save_outpath, adt_marker_select_name,
@@ -314,7 +312,8 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL,
             midpoint_type = midpoint_type,
             neg_candidate_thres = neg_candidate_thres
         )
-        if (!is.null(target_landmark_location)){ ## specify the locations where negative peak, valley, and positive peak should align to
+        if (!is.null(target_landmark_location)){
+            ## specify the locations where negative peak, valley, and positive peak should align to
             if (landmark_align_type == "negPeak_valley_posPeak"){
                 if (ncol(peak_mode_res) == 1){
                     target_landmark = c(target_landmark_location[1], round(mean(target_landmark_location), 1))
@@ -338,7 +337,7 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL,
         }
         peak_alignment_res = peak_alignment(cell_x_adt[, adt_marker_select],
                                             cell_x_feature, landmark_matrix,
-                                            target_landmark = target_landmark)
+                                            target_landmark=target_landmark)
         cell_x_adt_norm[, adt_marker_select] = peak_alignment_res[[1]]
 
         if(ncol(peak_alignment_res[[2]]) == 2){
@@ -351,11 +350,15 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL,
             peak_mode_norm_res = peak_alignment_res[[2]][, c(1, 3, 5)]
             valley_location_norm_res = peak_alignment_res[[2]][, c(2, 4)]
         }
-        density_norm_plot <- plot_adt_density_with_peak_valley_each(cell_x_adt_norm[, adt_marker_select], cell_x_feature, peak_landmark_list = peak_mode_norm_res, valley_landmark_list = valley_location_norm_res, brewer_palettes = brewer_palettes, parameter_list = list(
-            bw = 0.2,
-            method_label = "ADTnorm"
-        ))
-        if(save_intermediate_rds){
+        density_norm_plot <- plot_adt_density_with_peak_valley_each(
+          cell_x_adt_norm[, adt_marker_select],
+          cell_x_feature,
+          peak_landmark_list=peak_mode_norm_res,
+          valley_landmark_list=valley_location_norm_res,
+          brewer_palettes=brewer_palettes,
+          parameter_list = list(bw=0.2, method_label = "ADTnorm") )
+
+        if (save_intermediate_rds){
             saveRDS(density_norm_plot, file = paste0(save_outpath,
                                                      "/RDS/density_ADTnorm_",
                                                      adt_marker_select_name, "_",
