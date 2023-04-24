@@ -3,8 +3,7 @@
 #' This function detect the valley locations either between every two peak
 #' landmarks or cut at the right heavy tails. If specified positive uni-peak,
 #' the valley location will be set at the left side of the uni-peak.
-#' @param cell_x_adt Matrix of ADT raw counts in cells (rows) by ADT markers
-#' (columns) format.
+#' @param expr Vector of ADT counts for ADT marker of interest
 #' @param cell_x_feature Matrix of cells (rows) by cell features (columns) such
 #' as cell type, sample, and batch related information.
 #' @param adt_marker_select Marker to normalize.
@@ -13,6 +12,8 @@
 #' @param shoulder_valley Indictor to specify whether a shoulder valley is
 #' expected in case of heavy right tail where the population of cells should be
 #' considered as positive population.
+#' @param shoulder_valley_slope The slope on the ADT marker density distribution
+#' to call shoulder valley.
 #' @param positive_peak A list variable containing a vector of ADT marker(s) and
 #' a corresponding vector of sample name(s) in matching order to specify that
 #' the uni-peak detected should be aligned to positive peaks. For example, for
@@ -24,8 +25,6 @@
 #' adjust*bw. This makes it easy to specify values like ‘half the default’ bandwidth.
 #' @param min_fc Mimimal fold change between the highest peak density height
 #' and candidate valley density height. Default is 20.
-#' @param shoulder_valley_slope The slope on the ADT marker density distribution
-#' to call shoulder valley.
 #' @param neg_candidate_thres The upper bound for the negative peak. Users can
 #' refer to their IgG samples to obtain the minimal upper bound of the IgG
 #' sample peak. It can be one of the values of asinh(4/5+1), asinh(6/5+1), or
@@ -40,11 +39,11 @@
 #' }
 #' @export
 #' @importFrom magrittr %$%
-get_valley_location = function(cell_x_adt, cell_x_feature, adt_marker_select,
+get_valley_location = function(expr, cell_x_feature, adt_marker_select,
                                peak_mode_res, shoulder_valley=TRUE,
                                positive_peak=NULL,
                                multi_sample_per_batch=FALSE, adjust=1.5,
-                               adjust=1.5, min_fc=20, shoulder_valley_slope=-1,
+                               min_fc=20, shoulder_valley_slope=-1,
                                lower_peak_thres=0.01,
                                neg_candidate_thres=asinh(10/5 + 1)) {
 
@@ -55,177 +54,166 @@ get_valley_location = function(cell_x_adt, cell_x_feature, adt_marker_select,
     tag_row = vector("list", length = nrow(peak_landmark_list))
     names(tag_row) = rownames(peak_landmark_list)
 
-    if (multi_sample_per_batch && ncol(peak_landmark_list) > 1){
+    if (isTRUE(multi_sample_per_batch) && ncol(peak_landmark_list) > 1){
         tag_row <- .filterPositivePeaks(cell_x_feature,
                                         peak_landmark_list, tag_row)
     }
 
-    valley_location_list = matrix(NA, nrow = nrow(peak_landmark_list),
-                                  ncol = max(1, ncol(peak_landmark_list) - 1))
-    rownames(valley_location_list) = levels(cell_x_feature$sample)
+    valley_location_list <- matrix(NA, nrow=nrow(peak_landmark_list),
+                                   ncol=max(1, ncol(peak_landmark_list) - 1))
+    rownames(valley_location_list) <- levels(cell_x_feature$sample)
 
     for (sample_name in levels(cell_x_feature$sample)) {
 
-        cell_ind_tmp = which(cell_x_feature$sample == sample_name)
-        cell_notNA = which(!is.na(cell_x_adt[cell_ind_tmp, adt_marker_select]))
-        cell_ind = cell_ind_tmp[cell_notNA]
+        keep_cells <- cell_x_feature$sample == sample_name & ! is.na(expr)
+        if (! any(keep_cells)){ next }
 
-        if (length(cell_ind) == 0){
-            next()
-        }
+        sample_expr <- expr[keep_cells,] # vector
+        zero_prop <- sum(sample_expr < 2) / length(sample_expr)
 
         peak_landmark = peak_landmark_list[sample_name, ]
-        zero_prop = sum(cell_x_adt[cell_ind, adt_marker_select] < 2) /
-        length(cell_x_adt[cell_ind, adt_marker_select])
 
-        ## check if user define single peak to be positive peak
-        pos_marker_index = which(paste0("tmpName", positive_peak$ADT_index) == adt_marker_select)
-        pos_sample_index = which(positive_peak$sample == sample_name)
+        lower_valley <- ifelse(sample_name %in% positive_peak, TRUE, FALSE)
 
-        if (length(intersect(pos_marker_index, pos_sample_index)) > 0) {
-            lower_valley = TRUE
-        } else {
-            lower_valley = FALSE
-        }
+        ### check if user define single peak to be positive peak
+        #pos_marker_index = which(paste0("tmpName", positive_peak$ADT_index) == adt_marker_select)
+        #pos_sample_index = which(positive_peak$sample == sample_name)
 
-        density_res = stats::density(
-            cell_x_adt[which(cell_x_feature$sample == sample_name), adt_marker_select],
-            adjust = adjust)
+        ## If it is a positive sample, lower_valley = TRUE, else FALSE
+        #if (length(intersect(pos_marker_index, pos_sample_index)) > 0) {
+        #    lower_valley = TRUE
+        #} else {
+        #    lower_valley = FALSE
+        #}
 
-        x = density_res$x
-        y = density_res$y
+        # Use kernel density to find peak and valley locations ----
+        # This excludes NAs - original code doesn't
+        density_res <- stats::density(sample_expr, adjust=adjust)
+        x <- density_res$x
+        y <- density_res$y
+        sign_diff <- sign(diff(y))
+        diff_sign_diff <- diff(sign_diff)
+        peak <- which(diff_sign_diff == -2) + 1
+        valley <- which(diff_sign_diff == 2) + 1
+        x_valley <- x[valley]
+        y_valley <- y[valley]
+        x_peak <- x[peak]
 
-        sign_diff = sign(diff(y))
-        diff_sign_diff = diff(sign_diff)
-        peak = which(diff_sign_diff == -2) + 1
-        valley = which(diff_sign_diff == 2) + 1
-
-        x_valley = x[valley]
-        y_valley = y[valley]
-        x_peak = x[peak]
-        real_peak = peak_landmark[!is.na(peak_landmark)] # peak
-        np = length(real_peak)
+        real_peak <- peak_landmark[!is.na(peak_landmark)] # peak
+        np <- length(real_peak)
 
         ## if this sample is tagged, choose the highest peak
         if (!is.null(tag_row[[sample_name]])) {
             ## there are peaks that need to be removed
-            peak_landmark_y = c()
-            for (peak_landmark_each in peak_landmark) {
+            peak_landmark_y <- NULL
+            for (peak_landmark_each in real_peak) { # change to remove NA
                 ## get the density value for the peak location
-                peak_landmark_y = c(peak_landmark_y,
-                                  y[which.min(abs(x - peak_landmark_each))])
+                peak_landmark_y <- c(peak_landmark_y,
+                                    y[which.min(abs(x - peak_landmark_each))])
             }
-            common_peak_n = length(peak_landmark_y) - length(tag_row[[sample_name]])
+            common_peak_n <- np - length(tag_row[[sample_name]])
             ## get the highest peak
-            real_peak = real_peak[sort(order(peak_landmark_y, decreasing = T)[1:common_peak_n])]
-            np = length(real_peak) ## update number of peak i.e, np
-            peak_landmark_list[sample_name, ] = NA
+            real_peak <- real_peak[sort(order(peak_landmark_y, decreasing=TRUE)[seq_len(common_peak_n)])]
+            np <- length(real_peak) ## update number of peak i.e, np
+            peak_landmark_list[sample_name, ] <- NA
             ## remove the outlier peak
-            peak_landmark_list[sample_name, (1:ncol(peak_landmark_list))[-tag_row[[sample_name]]]] = real_peak
+            peak_landmark_list[sample_name, (1:ncol(peak_landmark_list))[-tag_row[[sample_name]]]] <- real_peak
         }
 
-
         if (np > 1) { ## two peaks or more
-            real_valley = c()
-            for (i in 1:(np - 1)) {
-                tmp_valley = x_valley[(x_valley > real_peak[i]) &
-                                        (x_valley < real_peak[i + 1])]
-                tmp_real_valley = tmp_valley[which.min(y_valley[(x_valley > real_peak[i]) &
-                                                                  (x_valley < real_peak[i + 1])])]
-                if(length(tmp_real_valley) == 0){
-                    ## no minimal point between two peak,
-                    ## ensure tmp_real_valley is not empty
-                    tmp_real_valley = (real_peak[i] + real_peak[i+1]) / 2
+            real_valley = NULL
+            for (i in seq_len(np - 1)) {
+                valid_valley <- x_valley > real_peak[i] &
+                    (x_valley < real_peak[i + 1])
+
+                # Which possible valley has the lowest y value?
+                tmp_valley <- x_valley[valid_valley]
+                tmp_real_valley <- tmp_valley[which.min(y_valley[valid_valley])]
+
+                if (length(tmp_real_valley) == 0){
+                    ## no minimal point between two peak, use midpoint
+                    tmp_real_valley <- mean(real_peak[i:i+1])
                 }
                 if (i == 1 & isTRUE(shoulder_valley)){
-                    shoulder_cand_index = which(diff(y)/diff(x) > shoulder_valley_slope)
-                    first_peak_index = (which(x > max(x_peak[1], real_peak[1])) %>% min) + 50
-                    x_shoulder = x[shoulder_cand_index[shoulder_cand_index > first_peak_index][1]]
-                    real_valley = c(real_valley, min(x_shoulder, tmp_real_valley, na.rm = T))
+                    x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope)
+                    real_valley <- min(x_shoulder, tmp_real_valley, na.rm=TRUE)
                 } else{
-                    ## there is no local minimum that fall within two peaks
-                    if(length(tmp_valley) == 0){
-                        ## use the midpoint of two peak location --- maybe shoulder peak instead?
-                        real_valley = c(real_valley, (real_peak[i] + real_peak[i+1]) / 2)
-                    }else{
-                        real_valley = c(real_valley, tmp_real_valley)
-                    }
-
+                    real_valley = c(real_valley, tmp_real_valley)
                 }
             }
         } else if(np == 1) { ## one peak
-            if (lower_valley == FALSE) { ## one peak is negative peak
-                real_valley =  x_valley[x_valley > real_peak[1] + 0.1][1]
-                if(shoulder_valley){
-                    ## if one peak & go for shoulder threshold
-                    shoulder_cand_index = which(diff(y)/diff(x) > shoulder_valley_slope)
-                    first_peak_index = (which(x > max(x_peak[1], real_peak[1])) %>% min) + 50
-                    x_shoulder = x[shoulder_cand_index[shoulder_cand_index > first_peak_index][1]]
-                    real_valley = min(x_shoulder, real_valley, na.rm = T)
-
-                }else{
-                    ## check if no valley is detected due to shoulder peak
-                    if(length(y_valley[x_valley >  real_peak[1]]) == 0 || (y_valley[x_valley >  real_peak[1] + 0.1][1] < 0.05)){
-                        ## if one peak consider the shoulder point
-                        shoulder_cand_index = which(diff(y)/diff(x) > shoulder_valley_slope)
-                        first_peak_index = (which(x > max(x_peak[1], real_peak[1])) %>% min) + 50
-                        x_shoulder = x[shoulder_cand_index[shoulder_cand_index > first_peak_index][1]]
-                        real_valley = min(x_shoulder, real_valley, na.rm = T)
+            if (isFALSE(lower_valley)) { ## one peak is negative peak
+                valid_valley <- x_valley > real_peak[1] + 0.1
+                real_valley <- x_valley[valid_valley][1]
+                if (isTRUE(shoulder_valley)){
+                    x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope)
+                    real_valley = min(x_shoulder, real_valley, na.rm=TRUE)
+                } else{
+                    ## If there is no valid valley or y value is low?
+                    if (sum(x_valley > real_peak[1]) == 0 |
+                        (y_valley[valid_valley][1] < 0.05)){
+                        ## Consider the shoulder point
+                        x_shoulder <- .getShoulderValley(x, y,
+                                                         shoulder_valley_slope)
+                        real_valley = min(x_shoulder, real_valley, na.rm = TRUE)
                     }
                 }
                 if (zero_prop > 0.8) {
                     real_valley = max(neg_candidate_thres, real_valley)
                 }
             } else { ## one peak is positive peak
-                real_valley = x[which((y < max(y) / min_fc) | (y < lower_peak_thres))[which((y < max(y) / min_fc) | (y < lower_peak_thres))< min(which(y == max(y)), which(x < real_peak[1]) %>% max())] %>% max()]
+
+                y_thres <- (y < max(y) / min_fc) | (y < lower_peak_thres)
+
+                # index of either the max y value or the last x before the peak
+                min_peak_idx <- min(which.max(y), max(which(x < real_peak[1])))
+
+                # y passes threshold, and is less than min_peak_idx
+                y_idx_pass <- which(y_thres) <- min_peak_idx
+
+                real_valley = x[max(which(y_thres)[y_idx_pass])]
+
+                ###############################################################
+                # can this be part of peak adjustment or after function returns?
                 peak_landmark_list[sample_name, ] = asinh(0/5 + 1)
                 peak_landmark_list[sample_name, ncol(peak_landmark_list)] = real_peak[1]
+                ##############################################################
+
                 real_valley = min(real_valley, asinh(0/5 + 1))
             }
         } else { ## no peak
             real_valley = NA
         }
         ## check if no valley is detected due to shoulder peak
-        if (length(real_valley) == 0 || all(is.na(real_valley))) {
-            if (length(real_peak) >= 2){ ## midpoint of two peak
-                real_valley = (real_peak[1] + real_peak[2]) / 2
+        if (length(real_valley) == 0 | all(is.na(real_valley))) {
+            if (length(real_peak) >= 2){ ## midpoint of first two peak
+                real_valley = mean(real_peak[1:2])
             } else{## shoulder valley
-                shoulder_cand_index = which(diff(y)/diff(x) > shoulder_valley_slope)
-                first_peak_index = (which(x > max(x_peak[1], real_peak[1])) %>% min) + 50
-                x_shoulder = x[shoulder_cand_index[shoulder_cand_index > first_peak_index][1]]
-                if(!is.na(x_shoulder)){
-                    real_valley = min(x_shoulder, real_valley, na.rm = T)
+                x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope)
+                if (!is.na(x_shoulder)){
+                    real_valley = min(x_shoulder, real_valley, na.rm=TRUE)
                 }
             }
-
         }
         valley_location_list[sample_name, 1:length(real_valley)] = real_valley
     }
 
     ## update peak_landmark_list if needed
-    # can this be simplified to just
-    #column_has_peak = colSums(!is.na(peak_landmark_list)) > 0
-    #peak_landmark_list = peak_landmark_list[, column_has_peak, drop = FALSE]
+    column_has_peak = colSums(!is.na(peak_landmark_list)) > 0
+    peak_landmark_list = peak_landmark_list[, column_has_peak, drop = FALSE]
 
-    if (any(colSums(!is.na(peak_landmark_list)) == 0)){
-        print("removing columns with all NA")
-
-        ## remove columns that have only NA values
-        col_index = which(colSums(!is.na(peak_landmark_list)) == 0)
-        peak_landmark_update = matrix(NA, nrow(peak_landmark_list),
-                                      ncol(peak_landmark_list) - length(col_index))
-        i = 1
-        for (c in 1:ncol(peak_landmark_list)) {
-            if (!(c %in% col_index)) {
-            peak_landmark_update[, i] = peak_landmark_list[, c]
-            i = i + 1
-            }
-        }
-        rownames(peak_landmark_update) = rownames(peak_landmark_list)
-        peak_landmark_list = peak_landmark_update
-    }
     return(list(valley_location_list=valley_location_list,
                 peak_landmark_list=peak_landmark_list))
+}
+
+
+# .getShoulderValley ----
+.getShoulderValley <- function(x, y, shoulder_valley_slope, real_valley,
+                               offset=50){
+    shoulder_cand_index <- which(diff(y)/diff(x) > shoulder_valley_slope)
+    first_peak_index <- (which(x > max(x_peak[1], real_peak[1])) %>% min) + offset
+    x_shoulder <- x[shoulder_cand_index[shoulder_cand_index > first_peak_index][1]]
+    return(x_shoulder)
 }
 
 

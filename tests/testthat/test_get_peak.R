@@ -44,3 +44,4 @@ test_that(".all_negative_peaks works as expected", {
 })
 
 # test that peak alignment works if there is one extra positive peak
+# test that peak finding words if there are nas

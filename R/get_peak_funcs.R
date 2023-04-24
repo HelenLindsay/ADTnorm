@@ -1,17 +1,18 @@
 # .adt_range ----
 .adt_range <- function(adt_expr, range_extension=0.15){
-  range_diff <- diff(range(adt_expr, na.rm = TRUE))
-  from = min(adt_expr, na.rm = TRUE) - range_diff * range_extension
-  to = max(adt_expr, na.rm = TRUE) + range_diff * range_extension
-  return(c(from, to))
+    adt_range <- range(adt_expr, na.rm = TRUE)
+    range_diff_ext <- diff(adt_range) * range_extension
+    from = adt_range[1] - range_diff_ext
+    to = adt_range[2] + range_diff_ext
+    return(c(from, to))
 }
 
 # .bw_by_zero_prop ----
 .bw_by_zero_prop <- function(zero_prop){
-  # different bandwidth w.r.t the zero proportion.
-  if (zero_prop > 0.5) { return(3.1) }
-  if (zero_prop > 0.3) { return(3) }
-  return(2)
+    # different bandwidth w.r.t the zero proportion.
+    if (zero_prop > 0.5) { return(3.1) }
+    if (zero_prop > 0.3) { return(3) }
+    return(2)
 }
 
 # .random_noise ----

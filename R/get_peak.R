@@ -10,7 +10,7 @@
 #' the band width is generally proper and the local peak density is not too
 #' discrete.
 #'
-#' @param adt Single-column matrix of arcsinh transformed ADT counts per cell
+#' @param expr Single-column matrix of arcsinh transformed ADT counts per cell
 #' @param samples vector of sample names, matching adt
 #' @param bwFac_smallest The smallest band width parameter value.
 #' Recommend 1.1 for general bi-modal ADT markers except CD3, CD4 and CD8.
@@ -34,39 +34,43 @@
 #' @examples
 #' \dontrun{
 #' get_peak(
-#'   adt = cell_x_adt["CD3",],
+#'   expr = cell_x_adt["CD3",],
 #'   samples = cell_x_feature$sample,
 #'   neg_candidate_thres = asinh(6/5+1)
 #' )
 #' }
-get_peak = function(adt, samples, n_expected_peaks = 2,
+get_peak = function(expr, samples, n_expected_peaks = 2,
                     peak_type = c("mode", "midpoint"),
                     bwFac_smallest = 1.1, positive_peak = NULL,
                     neg_candidate_thres = asinh(10/5 + 1),
                     lower_peak_thres = 0.001) {
 
-    border = 0.01
+    if (ncol(adt) > 1){ stop("expr should be a single column matrix") }
+    if (! is.factor(sample)){ stop("sample should be a factor") }
+    expr <- as.matrix(expr)
+
+    border <- 0.01
     peak_type <- match.arg(peak_type)
-    sample_names = levels(samples)
-    adt <- as.matrix(adt, ncol = 1)
+    sample_names <- levels(samples)
+    expr <- as.matrix(expr)
+
+    peak_loc = list()
 
     # get ADT value range with a slight extension across all samples
-    adt_range <- .adt_range(adt)
+    adt_range <- .adt_range(expr)
 
     # get peak for each sample of this processing ADT marker
     for (sample_name in sample_names){
 
-        # Setup data -------------------------------------------------
-
-        fcs_count <- adt[samples == sample_name, , drop = FALSE]
-        fcs_count <- fcs_count[! is.na(fcs_count), , drop = FALSE]
-
-        if (nrow(fcs_count) == 0){
-            peak_loc[[sample_name]] = NA
-            next
+        keep_cells <- sample == sample_name & ! is.na(expr)
+        if (! any(keep_cells)){
+          peak_loc[[sample_name]] = NA
+          next
         }
 
+        fcs_count = expr[keep_cells, , drop=FALSE]
         n_unique_vals = nrow(unique(fcs_count))
+
         if (n_unique_vals == 1){
             ## only one value for this marker
             peak_loc[[sample_name]] = NA
@@ -80,7 +84,7 @@ get_peak = function(adt, samples, n_expected_peaks = 2,
         # if most are around 0 and there are very few unique values:
         # add random small number
         if (zero_prop > 0.95 & n_unique_vals < 50){
-          fcs_count = .random_noise(fcs_count)
+            fcs_count = .random_noise(fcs_count)
         }
 
         fcs = flowCore::flowFrame(fcs_count)

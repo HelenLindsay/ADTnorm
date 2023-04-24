@@ -82,17 +82,25 @@ ADTnorm2 <- function(cell_x_adt, cell_x_feature, save_outpath=NULL,
        bwFac_smallest <- bw_res$bwFac_smallest[[adt]]
        marker_type <- bw_res$marker_type[[adt]]
 
-       peak_mode_res = get_peak(cell_x_adt, cell_x_feature, log_file,
-                                adt, marker_type,
+       # is marker name actually necessary?
+       peak_mode_res = get_peak(cell_x_adt[, adt, drop=FALSE],
+                                cell_x_feature$sample,
+                                log_file, adt, marker_type,
                                 bwFac_smallest=bwFac_smallest,
                                 positive_peak=positive_peak,
                                 neg_candidate_thres=neg_candidate_thres,
                                 lower_peak_thres=lower_peak_thres,
                                 proximity=proximity)
 
+       # filter positive peaks ----
+
+       # this uses batch, but get_valley_location doesn't need it
+
        # get valley ----
-       peak_valley_list <- get_valley_location(
-           cell_x_adt, cell_x_feature, adt, peak_mode_res,
+
+       # select just the positive samples to pass to get_valley_location
+       peak_valley_list <- get_valley_location(cell_x_adt[, adt, drop=FALSE],
+           cell_x_feature, adt, peak_mode_res,
            shoulder_valley, positive_peak, multi_sample_per_batch,
            adjust=valley_density_adjust, min_fc=20,
            shoulder_valley_slope=shoulder_valley_slope,
