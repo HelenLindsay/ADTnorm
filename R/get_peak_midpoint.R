@@ -66,6 +66,10 @@ get_peak_midpoint = function(expr, sample, log_file,
         cat(toString(cn), "\n", file=log_file) # log file is rewritten here
     }
 
+    # get ADT value range with a slight extension across all samples
+    adt_range <- .adt_range(expr)
+    print(adt_range)
+
     ## get peak mode for each sample of this processing ADT marker
     for(sample_name in sample_names){
         ## extract the ADT counts for this sample
@@ -120,7 +124,8 @@ get_peak_midpoint = function(expr, sample, log_file,
                 peak_info <- flowStats::curvPeaks(x=fres,
                                                   dat=expr, # including NAs
                                                   borderQuant=border,
-                                                  from=from, to=to)
+                                                  from=adt_range[1],
+                                                  to=adt_range[2])
 
                 #############################
                 .log_peak_midpoints(log_file, sample_name, fres, peak_info)
@@ -132,8 +137,8 @@ get_peak_midpoint = function(expr, sample, log_file,
                     x = fres,
                     dat = fcs_count[,1],
                     borderQuant = border,
-                    from = from,
-                    to = to)
+                    from=adt_range[1],
+                    to=adt_range[2])
 
                     #############################
                     .log_peak_midpoints(log_file, sample_name, fres, peak_info)
@@ -149,8 +154,8 @@ get_peak_midpoint = function(expr, sample, log_file,
                 x = fres,
                 dat = fcs_count[,1],
                 borderQuant = border,
-                from = from,
-                to = to)
+                from=adt_range[1],
+                to=adt_range[2])
 
                 #############################
                 .log_peak_midpoints(log_file, sample_name, fres, peak_info)
@@ -161,7 +166,8 @@ get_peak_midpoint = function(expr, sample, log_file,
                     peak_info = flowStats::curvPeaks(
                     x = fres, dat = fcs_count[,1],
                     borderQuant = border,
-                    from = from, to = to)
+                    from=adt_range[1],
+                    to=adt_range[2])
 
                     #############################
                     .log_peak_midpoints(log_file, sample_name, fres, peak_info)
@@ -172,7 +178,8 @@ get_peak_midpoint = function(expr, sample, log_file,
           } else { ## other marker
               peak_info <- flowStats::curvPeaks(x=fres, dat = fcs_count[,1],
                                                 borderQuant=border,
-                                                from=from, to=to)
+                                                from=adt_range[1],
+                                                to=adt_range[2])
 
               #############################
               .log_peak_midpoints(log_file, sample_name, fres, peak_info)
@@ -186,7 +193,8 @@ get_peak_midpoint = function(expr, sample, log_file,
                             x=fres0,
                             dat = fcs_count[,1],
                             borderQuant=0,
-                            from=from, to=to)
+                            from=adt_range[1],
+                            to=adt_range[2])
                     #############################
                     .log_peak_midpoints(log_file, sample_name, fres0, peak_info)
                     #############################
@@ -205,8 +213,8 @@ get_peak_midpoint = function(expr, sample, log_file,
                                 x = fres,
                                 dat = fcs_count[,1],
                                 borderQuant = border,
-                                from = from,
-                                to = to
+                                from=adt_range[1],
+                                to=adt_range[2]
                         )
 
                         #############################
@@ -233,8 +241,8 @@ get_peak_midpoint = function(expr, sample, log_file,
                                 x = fres1,
                                 dat = fcs_count[,1],
                                 borderQuant = 0,
-                                from = from,
-                                to = to
+                                from=adt_range[1],
+                                to=adt_range[2]
                             )
                             #############################
                             .log_peak_midpoints(log_file, sample_name, fres1, peak_info)
@@ -253,8 +261,8 @@ get_peak_midpoint = function(expr, sample, log_file,
                                     x = fres0,
                                     dat = fcs_count[,1],
                                     borderQuant = 0,
-                                    from = from,
-                                    to = to
+                                    from=adt_range[1],
+                                    to=adt_range[2]
                                 )
                                 #############################
                                 .log_peak_midpoints(log_file, sample_name, fres0, peak_info)
@@ -279,8 +287,8 @@ get_peak_midpoint = function(expr, sample, log_file,
                                     x = fres0,
                                     dat = fcs_count[,1],
                                     borderQuant = 0,
-                                    from = from,
-                                    to = to
+                                    from=adt_range[1],
+                                    to=adt_range[2]
                                 )
                                 #############################
                                 .log_peak_midpoints(log_file, sample_name, fres0, peak_info)
@@ -293,8 +301,8 @@ get_peak_midpoint = function(expr, sample, log_file,
                                         x = fres1,
                                         dat = fcs_count[,1],
                                         borderQuant = 0,
-                                        from = from,
-                                        to = to
+                                        from=adt_range[1],
+                                        to=adt_range[2]
                                     )
                                     #############################
                                     .log_peak_midpoints(log_file, sample_name, fres1, peak_info)
@@ -319,8 +327,8 @@ get_peak_midpoint = function(expr, sample, log_file,
                                 x = fres0,
                                 dat = fcs_count[,1],
                                 borderQuant = 0,
-                                from = from,
-                                to = to
+                                from=adt_range[1],
+                                to=adt_range[2]
                             )
 
                             #############################
@@ -333,8 +341,8 @@ get_peak_midpoint = function(expr, sample, log_file,
                                         x = fres1,
                                         dat = fcs_count[,1],
                                         borderQuant = 0,
-                                        from = from,
-                                        to = to
+                                        from=adt_range[1],
+                                        to=adt_range[2]
                                     )
                                     #############################
                                     .log_peak_midpoints(log_file, sample_name, fres1, peak_info)
@@ -369,8 +377,8 @@ get_peak_midpoint = function(expr, sample, log_file,
                         x = fres2,
                         dat = fcs_count[,1],
                         borderQuant = border,
-                        from = from,
-                        to = to)
+                        from=adt_range[1],
+                        to=adt_range[2])
                     #############################
                     .log_peak_midpoints(log_file, sample_name, fres2, peak_infoTmp)
                     #############################
@@ -452,3 +460,7 @@ get_peak_midpoint = function(expr, sample, log_file,
                      noise=noise)
     readr::write_delim(df, file=log_f, append=TRUE, delim=", ")
 }
+
+
+# if it only has one peak, is it always he negative one?
+

@@ -49,17 +49,15 @@ ADTnorm2 <- function(cell_x_adt, cell_x_feature, save_outpath=NULL,
     #    cell_x_adt = arcsinh_transform(cell_x_adt = cell_x_adt) ## Arcsinh transformation
     #} ----
 
-    cell_x_adt = arcsinh_transform(cell_x_adt = cell_x_adt)
-
+    cell_x_adt <- .selectMarkers(cell_x_adt, marker_to_process)
     all_marker_name = colnames(cell_x_adt)
-
+    cell_x_adt = arcsinh_transform(cell_x_adt = cell_x_adt)
     # Select peak function
     get_peak <- ifelse(peak_type == "mode", get_peak_mode, get_peak_midpoint)
 
     bw_res <- .setBandwidth(all_marker_name, trimodal_marker,
                             bw_smallest_bi, bw_smallest_tri)
 
-    cell_x_adt_norm <- .selectMarkers(cell_x_adt, marker_to_process)
 
     #######
     # TO DO: n_expected_peak
@@ -350,12 +348,10 @@ ADTnorm2 <- function(cell_x_adt, cell_x_feature, save_outpath=NULL,
         message(sprintf("%s all the ADT markers from the ADT matrix: %s\n",
                         msg, toString(colnames(cell_x_adt))))
         cell_x_adt_norm = cell_x_adt
-    }
-
-    else {
+    } else {
         # Note: checked that all marker_to_process are in colnames cell_x_adt
-        messsage(sprintf("%s the following ADT markers as provided: ",
-                         msg, paste(marker_to_process, collapse = ", "), "\n"))
+        message(sprintf("%s the following ADT markers as provided: %s\n",
+                         msg, toString(marker_to_process)))
         cell_x_adt_norm = cell_x_adt[, marker_to_process, drop = FALSE]
     }
     return(cell_x_adt_norm)

@@ -28,37 +28,37 @@
 # require(dplyr)
 #' @export
 detect_impute_outlier_valley <- function(valley_location_res, adt_marker_select,
-                                         cell_x_adt, cell_x_feature, scale = 3,
-                                         method = "MAD", nearest_neighbor_n = 3,
-                                         nearest_neighbor_threshold = 0.75){
+                                         cell_x_adt, cell_x_feature, scale=3,
+                                         method="MAD", nearest_neighbor_n=3,
+                                         nearest_neighbor_threshold=0.75){
 
     method = match.arg(method, choices = c("MAD", "IQR"))
 
     # Get batch information
     valley_df <- valley_location_res %>%
         data.frame %>%
-        mutate(sample = rownames(valley_location_res)) %>%
-        left_join(valley_df, cell_x_feature %>%
-                                dplyr::select(sample, batch) %>%
-                                unique,
-                  by = "sample")
+        dplyr::mutate(sample = rownames(valley_location_res)) %>%
+        dplyr::left_join(valley_df, cell_x_feature %>%
+                           dplyr::select(sample, batch) %>%
+                           unique,
+                         by = "sample")
 
     ## within each batch find the valley outlier and impute by the nearest
     ## neighbor samples' valley
-    for (batch_each in cell_x_feature$batch %>% unique){
+    for (batch_each in unique(cell_x_feature$batch)){
 
         ## get the sample id within each batch
         sample_select <- which(valley_df$batch == batch_each)
 
         if (length(sample_select) > 2){ ## more than two samples per batch
             ## for each valley
-            for (c in 1:ncol(valley_location_res)){
+            for (c in seq_along(valley_location_res)){
 
                 ## choose outlier detection method
                 valley_loc <- valley_location_res[sample_select, c]
-                if(method == "MAD"){
+                if (method == "MAD"){
                     row_index <- sample_select[.outlier_mad(valley_loc, scale)]
-                } else if(method == "IQR"){
+                } else if (method == "IQR"){
                     row_index <- sample_select[.outlier_mad(valley_loc, scale)]
                 }
 
@@ -97,13 +97,13 @@ detect_impute_outlier_valley <- function(valley_location_res, adt_marker_select,
 }
 
 .outlier_mad <- function(valley_loc, scale){
-    abs_dev <- abs(valley_loc - stats::median(valley_loc, na.rm = TRUE))
-    outlier <- abs_dev > stats::mad(valley_loc, na.rm = TRUE) * scale
+    abs_dev <- abs(valley_loc - stats::median(valley_loc, na.rm=TRUE))
+    outlier <- abs_dev > stats::mad(valley_loc, na.rm=TRUE) * scale
     return(which(outlier))
 }
 
 .outlier_iqr <- function(valley_loc, scale){
-    outlier <- stats::quantile(valley_loc, 0.75, na.rm = TRUE) +
-                  scale * stats::IQR(valley_loc, na.rm = TRUE) < valley_loc
+    outlier <- stats::quantile(valley_loc, 0.75, na.rm=TRUE) +
+                  scale * stats::IQR(valley_loc, na.rm=TRUE) < valley_loc
     return(which(outlier))
 }

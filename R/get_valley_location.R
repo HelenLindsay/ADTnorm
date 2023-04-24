@@ -135,7 +135,8 @@ get_valley_location = function(expr, cell_x_feature, adt_marker_select,
                     tmp_real_valley <- mean(real_peak[i:i+1])
                 }
                 if (i == 1 & isTRUE(shoulder_valley)){
-                    x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope)
+                    x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope,
+                                                     x_peak, real_peak)
                     real_valley <- min(x_shoulder, tmp_real_valley, na.rm=TRUE)
                 } else{
                     real_valley = c(real_valley, tmp_real_valley)
@@ -146,7 +147,8 @@ get_valley_location = function(expr, cell_x_feature, adt_marker_select,
                 valid_valley <- x_valley > real_peak[1] + 0.1
                 real_valley <- x_valley[valid_valley][1]
                 if (isTRUE(shoulder_valley)){
-                    x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope)
+                    x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope,
+                                                     x_peak, real_peak)
                     real_valley = min(x_shoulder, real_valley, na.rm=TRUE)
                 } else{
                     ## If there is no valid valley or y value is low?
@@ -154,7 +156,8 @@ get_valley_location = function(expr, cell_x_feature, adt_marker_select,
                         (y_valley[valid_valley][1] < 0.05)){
                         ## Consider the shoulder point
                         x_shoulder <- .getShoulderValley(x, y,
-                                                         shoulder_valley_slope)
+                                                         shoulder_valley_slope,
+                                                         x_peak, real_peak)
                         real_valley = min(x_shoulder, real_valley, na.rm = TRUE)
                     }
                 }
@@ -189,7 +192,8 @@ get_valley_location = function(expr, cell_x_feature, adt_marker_select,
             if (length(real_peak) >= 2){ ## midpoint of first two peak
                 real_valley = mean(real_peak[1:2])
             } else{## shoulder valley
-                x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope)
+                x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope,
+                                                 x_peak, real_peak)
                 if (!is.na(x_shoulder)){
                     real_valley = min(x_shoulder, real_valley, na.rm=TRUE)
                 }
@@ -233,7 +237,8 @@ get_valley_location = function(expr, cell_x_feature, adt_marker_select,
                 tmp_real_valley <- mean(real_peak[i:i+1])
             }
             if (i == 1 & isTRUE(shoulder_valley)){
-                x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope)
+                x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope,
+                                                 x_peak, real_peak)
                 real_valley <- min(x_shoulder, tmp_real_valley, na.rm=TRUE)
             } else{
                 real_valley = c(real_valley, tmp_real_valley)
@@ -244,15 +249,16 @@ get_valley_location = function(expr, cell_x_feature, adt_marker_select,
             valid_valley <- x_valley > real_peak[1] + 0.1
             real_valley <- x_valley[valid_valley][1]
             if (isTRUE(shoulder_valley)){
-                x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope)
+                x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope,
+                                               x_peak, real_peak)
                 real_valley = min(x_shoulder, real_valley, na.rm=TRUE)
             } else{
             ## If there is no valid valley or y value is low?
                 if (sum(x_valley > real_peak[1]) == 0 |
                     (y_valley[valid_valley][1] < 0.05)){
           ## Consider the shoulder point
-          x_shoulder <- .getShoulderValley(x, y,
-                                           shoulder_valley_slope)
+          x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope,
+                                           x_peak, real_peak)
           real_valley = min(x_shoulder, real_valley, na.rm = TRUE)
         }
       }
@@ -290,7 +296,8 @@ get_valley_location = function(expr, cell_x_feature, adt_marker_select,
     if (length(real_peak) >= 2){ ## midpoint of first two peak
       real_valley = mean(real_peak[1:2])
     } else{## shoulder valley
-      x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope)
+      x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope,
+                                       x_peak, real_peak)
       if (!is.na(x_shoulder)){
         real_valley = min(x_shoulder, real_valley, na.rm=TRUE)
       }
@@ -318,7 +325,7 @@ get_valley_location = function(expr, cell_x_feature, adt_marker_select,
 
 
 # .getShoulderValley ----
-.getShoulderValley <- function(x, y, shoulder_valley_slope, real_valley,
+.getShoulderValley <- function(x, y, shoulder_valley_slope, x_peak, real_peak,
                                offset=50){
     shoulder_cand_index <- which(diff(y)/diff(x) > shoulder_valley_slope)
     first_peak_index <- (which(x > max(x_peak[1], real_peak[1])) %>% min) + offset
