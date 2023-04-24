@@ -207,6 +207,116 @@ get_valley_location = function(expr, cell_x_feature, adt_marker_select,
 }
 
 
+
+# .getValley ----
+.getValley <- function(peak_landmark, shoulder_valley, shoulder_valley_slope,
+                       zero_prop){
+    real_peak <- peak_landmark[!is.na(peak_landmark)] # peak
+    np <- length(real_peak)
+
+    # shoulder_valley applies:
+    # - to peak 1 if shoulder_valley is true
+
+    if (np > 1) { ## two peaks or more
+        real_valley = NULL
+        for (i in seq_len(np - 1)) {
+            # all of the density valleys that fall between peaks
+            valid_valley <- x_valley > real_peak[i] &
+                (x_valley < real_peak[i + 1])
+
+            # Which possible valley has the lowest y value?
+            tmp_valley <- x_valley[valid_valley]
+            tmp_real_valley <- tmp_valley[which.min(y_valley[valid_valley])]
+
+            if (length(tmp_real_valley) == 0){
+                ## no minimal point between two peak, use midpoint
+                tmp_real_valley <- mean(real_peak[i:i+1])
+            }
+            if (i == 1 & isTRUE(shoulder_valley)){
+                x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope)
+                real_valley <- min(x_shoulder, tmp_real_valley, na.rm=TRUE)
+            } else{
+                real_valley = c(real_valley, tmp_real_valley)
+            }
+        }
+    } else if(np == 1) { ## one peak
+        if (isFALSE(lower_valley)) { ## one peak is negative peak
+            valid_valley <- x_valley > real_peak[1] + 0.1
+            real_valley <- x_valley[valid_valley][1]
+            if (isTRUE(shoulder_valley)){
+                x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope)
+                real_valley = min(x_shoulder, real_valley, na.rm=TRUE)
+            } else{
+            ## If there is no valid valley or y value is low?
+                if (sum(x_valley > real_peak[1]) == 0 |
+                    (y_valley[valid_valley][1] < 0.05)){
+          ## Consider the shoulder point
+          x_shoulder <- .getShoulderValley(x, y,
+                                           shoulder_valley_slope)
+          real_valley = min(x_shoulder, real_valley, na.rm = TRUE)
+        }
+      }
+      if (zero_prop > 0.8) {
+        real_valley = max(neg_candidate_thres, real_valley)
+      }
+    } else { ## one peak is positive peak
+
+      y_thres <- (y < max(y) / min_fc) | (y < lower_peak_thres)
+
+      # index of either the max y value or the last x before the peak
+      min_peak_idx <- min(which.max(y), max(which(x < real_peak[1])))
+
+      # y passes threshold, and is less than min_peak_idx
+      y_idx_pass <- which(y_thres) <- min_peak_idx
+
+      real_valley = x[max(which(y_thres)[y_idx_pass])]
+
+      ###############################################################
+      # can this be part of peak adjustment or after function returns?
+      peak_landmark_list[sample_name, ] = asinh(0/5 + 1)
+      peak_landmark_list[sample_name, ncol(peak_landmark_list)] = real_peak[1]
+      ##############################################################
+
+      real_valley = min(real_valley, asinh(0/5 + 1))
+    }
+  } else { ## no peak
+    real_valley = NA
+  }
+
+
+
+  ## check if no valley is detected due to shoulder peak
+  if (length(real_valley) == 0 | all(is.na(real_valley))) {
+    if (length(real_peak) >= 2){ ## midpoint of first two peak
+      real_valley = mean(real_peak[1:2])
+    } else{## shoulder valley
+      x_shoulder <- .getShoulderValley(x, y, shoulder_valley_slope)
+      if (!is.na(x_shoulder)){
+        real_valley = min(x_shoulder, real_valley, na.rm=TRUE)
+      }
+    }
+  }
+
+
+}
+
+
+# .chooseBestValley ----
+.chooseBestValley <- function(x_valley, y_valley, real_peaks){
+    valley_before_peak
+    #valid_valley <- x_valley > real_peak[i] &
+    #  (x_valley < real_peak[i + 1])
+
+}
+
+
+
+# .getDensityLandmarks ----
+.getDensityLandmarks <- function(){
+
+}
+
+
 # .getShoulderValley ----
 .getShoulderValley <- function(x, y, shoulder_valley_slope, real_valley,
                                offset=50){
