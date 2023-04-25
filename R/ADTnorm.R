@@ -32,6 +32,7 @@
 #' @param detect_outlier_valley Detect outlier valley and impute by the neighbor samples.
 #' @param target_landmark_location Align the landmarks to a fixed location or, by default, align to the mean across samples for each landmark. The default value is NULL. Setting it to "fixed" will align the negative peak to 1 and the right-most positive peak to 5. Users can also assign a two-element vector indicating the location of the negative and most positive peaks to be aligned.
 #' @param clean_adt_name Clean the ADT marker name
+#' @param input_raw_counts
 #' @examples
 #' \dontrun{
 #' ADTnorm(
@@ -62,7 +63,7 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL,
                    save_intermediate_rds = FALSE, save_intermediate_fig = TRUE,
                    detect_outlier_valley = FALSE,
                    target_landmark_location = NULL, clean_adt_name = FALSE,
-                   log_dir = NULL, proximity=FALSE){
+                   log_dir = NULL, proximity=FALSE, input_raw_counts=TRUE){
 
     ## input parameter checking
     if(is.null(cell_x_adt)){
@@ -112,7 +113,16 @@ ADTnorm = function(cell_x_adt = NULL, cell_x_feature = NULL,
     }
 
     ## preprocess the input data
-    cell_x_adt = arcsinh_transform(cell_x_adt = cell_x_adt) ## Arcsinh transformation
+    if (isTRUE(input_raw_counts)){
+      ## Check that cell_x_adt is integers only
+      matrix = as.matrix(cell_x_adt)
+      as_int = as.matrix(cell_x_adt)
+      mode(as_int) <- "integer"
+      if(!all(as_int[!is.na(as_int)] == matrix[!is.na(matrix)]) | !all(matrix[!is.na(matrix)]>=0)){
+        stop("When using input_raw_counts, please only input positive integers for expression values.")
+      }
+      cell_x_adt = arcsinh_transform(cell_x_adt = cell_x_adt) ## Arcsinh transformation
+    }
 
     all_marker_name = colnames(cell_x_adt) ## save the original marker name
     if(!is.factor(cell_x_feature$sample)){
