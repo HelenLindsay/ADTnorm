@@ -1,10 +1,10 @@
 # plot_adt_density ----
-#' Plot the expression density profile with identified peak and valley locations
+#' Plot the expression density profile
 #'
-#' This function plots adt expression density profile with identifies peak and
+#' This function plots adt expression density profile with identified peak and
 #' valley locations. Each track is a sample, colored by batch.
-#' @param cell_x_count Matrix of ADT raw counts in cells (rows) by one target ADT
-#' marker (column) format.
+#' @param cell_x_count Matrix of ADT raw counts in cells (rows) by one target
+#' ADT marker (column) format.
 #' @param cell_x_feature Matrix of cells (rows) by cell features (columns) such
 #' as cell type, sample, and batch related information.
 #' @param adt_marker_select The target ADT marker(s) that the density plot is
@@ -34,10 +34,9 @@
 #'   parameter_list = list(bw = 0.1, run_label = "ADTnorm")
 #' )
 #' }
-plot_adt_density = function(adt_count, cell_x_feature,
-                            peak_landmark_list = NULL,
-                            valley_landmark_list = NULL,
-                            brewer_palettes = "Set1", parameter_list = NULL) {
+plot_adt_density = function(adt_count, cell_x_feature, peak_landmark_list=NULL,
+                            valley_landmark_list=NULL, brewer_palettes="Set1",
+                            parameter_list=NULL) {
 
     # Set run_label and bw (bandwidth) if specified ----
     run_label = ""
@@ -47,7 +46,7 @@ plot_adt_density = function(adt_count, cell_x_feature,
     if ("run_label" %in% names(parameter_list)) {
       run_label = parameter_list$run_label
     }
-    if("bw" %in% parameter_list_name){ bw = parameter_list$bw }
+    if ("bw" %in% parameter_list_name){ bw = parameter_list$bw }
 
     # If there is no batch, add a dummy variable ----
     if (! "batch" %in% colnames(cell_x_feature)){ cell_x_feature$batch <- 1 }

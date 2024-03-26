@@ -1,0 +1,18 @@
+get_peak_midpoint and get_peak_mode are mostly the same code,
+get_peak is intended to replace
+
+adts are identified using which(colnames == adt), would be safer to explicitly
+use names
+
+I think the addition of bimodal_peak / trimodal peak removed some CD4 specific
+code
+
+In get_peak, I was trying to separate the chains of if conditions into discrete
+functions, to allow for inputting a custom peak workflow or more easily changing
+the workflow.  I wrote workflows as a list of checks, a list of actions to take
+if check is true, and a list of actions to take if check is false.
+
+I wrote the functions that start with .
+
+Options of parallelising - either at marker level in ADTnorm or at sample level
+in get_peak

@@ -120,10 +120,10 @@ ADTnorm2 <- function(cell_x_adt, cell_x_feature, save_outpath=NULL,
 
     # Plot and save ----
 
-    n_samples = length(levels(cell_x_feature$sample))
-    adt_study = sprintf("%s_%s", adt_marker_select_name, study_name)
+    n_samples <- length(levels(cell_x_feature$sample))
+    adt_study <- sprintf("%s_%s", adt_marker_select_name, study_name)
     fig_dir <- file.path(save_outpath, "/figures")
-    rds_dir = file.path(save_outpath, "/RDS")
+    rds_dir <- file.path(save_outpath, "/RDS")
 
     # fig_dir needed for this function?
     density_plot <- plot_adt_density_with_peak_valley_each(
